@@ -32,11 +32,11 @@ TODO 9. Upload Data to AWS
 //================================================================//
 
 //! Function Definition
-void connect_to_ntp(void);
+String connect_to_ntp(void);
 String update_time_via_ntp(void);
 int connect_to_wifi(void);
 void setup_nrf24l01(void);
-void setup_nrf_in_writing_mode(uint64_t transmitting_address, char *transmission_message);
+void setup_nrf_in_writing_mode(uint64_t transmitting_address, String transmission_message);
 char *setup_nrf_in_listening_mode(uint64_t recieving_address);
 int check_sd_module_connection(void);
 void upload_data_to_sd_card(String formatted_ntp_date_time, char *data_string);
@@ -73,10 +73,11 @@ void loop()
 
 //! Funtion Declaration
 /**
- * @brief This function tries to connects with ntp server
+ * @brief This function connects to NTP Server and return formatted time.
  *
+ * @return String: Formatted Time: YYYY/MM/DD-HH:MM:SS
  */
-void connect_to_ntp(void)
+String connect_to_ntp(void)
 {
         if (WiFi.status() != WL_CONNECTED)
         { // Checks if wifi is connected
@@ -85,17 +86,21 @@ void connect_to_ntp(void)
         if (wifi_connection_status_flag == WL_CONNECTED) // Wifi Connection Successful
         {
                 timeClient.begin();
-                update_time_via_ntp();
+                String formatted_time = update_time_via_ntp();
+                return formatted_time;
         }
         else
         {
                 Serial.println("Time Update Failed");
+                String default_time_if_ntp_fails = "2020/01/01-00:00:00"; // A default time returned if ntp fails to update. Update the time here when RTC is connected
+                return default_time_if_ntp_fails;
         }
 }
 
 /**
- * @brief Checks if wifi is connected and updates to latest time
+ * @brief Connects to NTP server and updates to latest time
  *
+ * @return String: Return Time Format: YYYY/MM/DD-HH:MM:SS
  */
 String update_time_via_ntp(void)
 {
@@ -131,7 +136,7 @@ String update_time_via_ntp(void)
  * @brief This funciton searches for wifi and tries connecting it.
  * If it connects to wifi then it displays "Wifi Connection success!", else it displays "Wifi Connection Error!"
  *
- * @return int Wifi Connection Status Flag
+ * @return Int: Wifi Connection Status Flag
  */
 int connect_to_wifi(void)
 {
@@ -165,7 +170,7 @@ int connect_to_wifi(void)
 }
 
 /**
- * @brief Set the up nrf24l01 object
+ * @brief Set the up nrf24l01 connection
  *
  */
 void setup_nrf24l01(void)
@@ -177,10 +182,10 @@ void setup_nrf24l01(void)
 /**
  * @brief Set the up nrf in writing mode object
  *
- * @param transmitting_address
- * @param transmission_message
+ * @param uint64_t: transmitting_address
+ * @param String: transmission_message
  */
-void setup_nrf_in_writing_mode(uint64_t transmitting_address, char *transmission_message)
+void setup_nrf_in_writing_mode(uint64_t transmitting_address, String transmission_message)
 {
         radio.openWritingPipe(transmitting_address);
         radio.stopListening();
@@ -191,7 +196,7 @@ void setup_nrf_in_writing_mode(uint64_t transmitting_address, char *transmission
 /**
  * @brief Set the up nrf in listening mode
  *
- * @param string: recieving_address
+ * @param uint64_t: recieving_address
  * @return string: recieved message
  */
 char *setup_nrf_in_listening_mode(uint64_t recieving_address)
@@ -212,9 +217,10 @@ char *setup_nrf_in_listening_mode(uint64_t recieving_address)
  * if its connected, then it uploads the data to AWS and saves it to the default folder.
  * If AWS is not connected, then the data is stored in the AWS_Backlog_file.txt
  *
- * @return int In Backlog file = 1, In AWS File = 0
+ * @param String: formatted_ntp_date_time
+ * @param String: data_string
  */
-void upload_data_to_sd_card(String formatted_ntp_date_time, char *data_string)
+void upload_data_to_sd_card(String formatted_ntp_date_time, String data_string)
 {
         //* Get the lastest NTP Time
         //! if () Check AWS Connection
@@ -229,31 +235,46 @@ void upload_data_to_sd_card(String formatted_ntp_date_time, char *data_string)
                 sd_data_upload_aws_offline(formatted_ntp_date_time, data_string);
                 write_to_default_location_on_sd(formatted_ntp_date_time, data_string);
         }
-
-        //       return storage_location;
 }
 
 /**
  * @brief Checks whether SD Card is present or not.
  *
- * @return connection_status
+ * @return Int: connection_status
+ * Success: 1
+ * Failure: 0
  */
 int check_sd_module_connection(void)
 {
         if (!SD.begin(chip_select))
         {
                 Serial.println("SD Card failed, or not present");
-                return chip_select;
+                return 0;
         }
         Serial.println("SD Card Initialized.");
-        return chip_select;
+        return 1;
 }
 
-void sd_data_upload_aws_offline(String formatted_date_and_time, String data_string) // This function is used when the AWS is offline and we write on AWS_Backlog_file.txt
+/**
+ * @brief This function is used when the AWS is offline and we write on AWS_Backlog_file.txt
+ *
+ * @param String formatted_date_and_time
+ * @param String data_string_recieved_from_box
+ */
+void sd_data_upload_aws_offline(String formatted_date_and_time, String data_string)
 {
         sd_card_data_write(formatted_date_and_time, AWS_BACKLOG_FILE, data_string);
 }
 
+/**
+ * @brief This function is used when the AWS is online
+ *  First the data recieved is saved into AWS_Backlog_file in write mode
+ * Then the file is opened again in read mode and line by line all the previous data is converted to json
+ * the json is then uploaded to aws
+ *
+ * @param String formatted_date_and_time
+ * @param String data_string_recieved_from_box
+ */
 void sd_data_write_and_read_then_upload_to_aws(String formatted_date_and_time, String data_string)
 {
         sd_card_data_write(formatted_date_and_time, AWS_BACKLOG_FILE, data_string);
@@ -268,7 +289,14 @@ void sd_data_write_and_read_then_upload_to_aws(String formatted_date_and_time, S
         SD.remove(AWS_BACKLOG_FILE); // Remove the file after all the data is being retrieved and uploaded
 }
 
-void sd_card_data_write(String formatted_date_and_time, String file_name, String recieved_data) // This function opens a file and writes to it
+/**
+ * @brief This function opens a file and writes to it
+ *
+ * @param String formatted_date_and_time
+ * @param String file_name
+ * @param String recieved_data
+ */
+void sd_card_data_write(String formatted_date_and_time, String file_name, String recieved_data)
 {
         String data_string = create_formatted_string(formatted_date_and_time, recieved_data);
         File dataFile = SD.open(AWS_BACKLOG_FILE, FILE_WRITE);
@@ -276,6 +304,12 @@ void sd_card_data_write(String formatted_date_and_time, String file_name, String
         dataFile.close();
 }
 
+/**
+ * @brief Writes on the default organized location in format YYYY/MM/DD.txt format
+ *
+ * @param String: formatted_data_time
+ * @param String: data_string
+ */
 void write_to_default_location_on_sd(String formatted_data_time, String data_string)
 {
         String year_directory = formatted_data_time.substring(0, 7); // YYYY/MM/DD-HH:MM:SS => YYYY/MM/
@@ -291,27 +325,48 @@ void write_to_default_location_on_sd(String formatted_data_time, String data_str
         }
 }
 
-//* look for the default directory, if it doesn't exist, create a new directory and file name with today's date
-//* Convert the input data from string format to json format
-
+/**
+ * @brief Uploads the data to AWS Server
+ *
+ * @param String: data_json
+ */
 void upload_to_aws(String data_json)
 {
 }
 
+/**
+ * @brief Converts the data from string format to json format
+ *
+ * @param String: data_string
+ * @return String: data_json
+ */
 String string_to_json_converter(String data_string)
 {
         String data_json = "";
         return data_json;
 }
 
+/**
+ * @brief Converts the data from json format to String format
+ *
+ * @param String: data_json
+ * @return String: data_string
+ */
 String json_to_string_converter(String data_json)
 {
         String data_string = "";
         return data_string;
 }
 
+/**
+ * @brief Creates the string in the required format by joining time and the data_string
+ *
+ * @param String: formatted_date_and_time
+ * @param String: data_string
+ * @return String: Formatted String to be saved into file
+ */
 String create_formatted_string(String formatted_date_and_time, String data_string)
 {
-        String formatted_string = "";
+        String formatted_string = formatted_date_and_time + data_string;
         return formatted_string;
 }
