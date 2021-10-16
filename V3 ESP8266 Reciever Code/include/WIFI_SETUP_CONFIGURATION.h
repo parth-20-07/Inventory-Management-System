@@ -3,6 +3,7 @@
 
 #include <ESP8266WiFi.h>
 //! Setting up Wifi Requirements
+#define WIFI_ON
 int wifi_connection_status_flag;
 
 #endif
