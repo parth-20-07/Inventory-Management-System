@@ -38,8 +38,8 @@ String connect_to_ntp(void);
 String update_time_via_ntp(void);
 int connect_to_wifi(void);
 void setup_nrf24l01(void);
-void setup_nrf_in_writing_mode(uint64_t transmitting_address, String transmission_message);
-char *setup_nrf_in_listening_mode(uint64_t recieving_address);
+void setup_nrf_in_writing_mode(byte transmitting_address[], char transmission_message[], size_t message_length);
+void setup_nrf_in_listening_mode(byte recieving_address[]);
 int check_sd_module_connection(void);
 void upload_data_to_sd_card(String formatted_ntp_date_time, char *data_string);
 void sd_data_upload_aws_offline(String formatted_date_and_time, String data_string);
@@ -54,31 +54,32 @@ void setup_eeprom(void);
 void generate_random_communication_address_and_save_to_eeprom(char box_or_reciever_code, String recieved_device_id);
 void update_communication_id_array(void);
 
+int i;
 // ! Initial Setup
 void setup()
 {
         Serial.begin(115200);
 #ifdef WIFI_ON
-        wifi_connection_status_flag = connect_to_wifi();
+        connect_to_wifi();
         connect_to_ntp();
 #endif
-        setup_nrf24l01();
-        sd_card_status = check_sd_module_connection();
-        setup_eeprom();
+        // setup_nrf24l01();
+        // sd_card_status = check_sd_module_connection();
+        // setup_eeprom();
 }
 
 // ! Looped Code
 void loop()
 {
 #ifdef WIFI_ON
-        String formatted_date_and_time = update_time_via_ntp();
+        update_time_via_ntp();
 #endif
-        Serial.println(formatted_date_and_time);
-        setup_nrf_in_writing_mode((uint64_t)BROADCAST_RECIEVER_ADDRESS, periodic_data_update_request);
-        *recieved_message = setup_nrf_in_listening_mode((uint64_t)BROADCAST_RECIEVER_ADDRESS);
-        upload_data_to_sd_card(formatted_date_and_time, *recieved_message);
-        Serial.println("\n\n\n");
-        delay(5000);
+        // setup_nrf_in_writing_mode(BROADCAST_RECIEVER_ADDRESS, periodic_data_update_request, sizeof(periodic_data_update_request));
+        // setup_nrf_in_listening_mode(BROADCAST_RECIEVER_ADDRESS);
+        // Serial.println(recieved_message);
+        // upload_data_to_sd_card(formatted_date_and_time, *recieved_message);
+        // Serial.println("\n\n\n");
+        delay(1000);
 }
 
 //! Funtion Declaration
@@ -96,16 +97,17 @@ int connect_to_wifi(void)
         Serial.println("\n\nAttempting to connect to Wifi");
         WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
         int connection_attempt = 0;
-        while ((WiFi.status() != WL_CONNECTED) & (connection_attempt < 8))
+        while ((WiFi.status() != WL_CONNECTED) & (connection_attempt < 100))
         {
                 delay(50);
                 Serial.print(".");
                 connection_attempt++;
         }
+        Serial.println();
         switch (WiFi.status())
         {
         case 3: // WL_CONNECTED = 3: Connection Successful
-                Serial.println("Wifi connect success of SSID" + String(WIFI_SSID));
+                Serial.println("Wifi connect success of SSID: " + String(WIFI_SSID));
                 break;
         case 1: // WL_NO_SSID_AVAIL = 1: Wifi not in range
                 Serial.println("Cannot Find SSID, Check if router in Range!");
@@ -131,9 +133,9 @@ String connect_to_ntp(void)
         if (WiFi.status() != WL_CONNECTED)
         { // Checks if wifi is connected
                 Serial.println("Wifi disconnected");
-                wifi_connection_status_flag = connect_to_wifi();
+                connect_to_wifi();
         }
-        if (wifi_connection_status_flag == WL_CONNECTED) // Wifi Connection Successful
+        if (WiFi.status() == WL_CONNECTED) // Wifi Connection Successful
         {
                 Serial.println("Wifi Available");
                 timeClient.begin();
@@ -156,30 +158,17 @@ String update_time_via_ntp(void)
 {
         if (WiFi.status() != WL_CONNECTED)
         { // Checks if wifi is connected
-                wifi_connection_status_flag = connect_to_wifi();
+                connect_to_wifi();
         }
         String raw_date_and_time;
-        if (wifi_connection_status_flag == WL_CONNECTED) // Wifi Connection Successful
+        if (WiFi.status() == WL_CONNECTED) // Wifi Connection Successful
         {
                 // Updates to latest time
                 for (size_t i = 0; i < 3; i++)
                 { // 3 updates to avoid getting wrong time
                         timeClient.update();
                 }
-                // This whole section is to convert the raw date time format from YYYY-MM-DDTHH:MM:SSZ to YYYY/MM/DD-HH:MM:SS
-                raw_date_and_time = timeClient.getFormattedTime(); // Raw Time Format: YYYY-MM-DDTHH:MM:SSZ =  characters
-                Serial.println(raw_date_and_time);
-                String unwanted_characters = "-TZ";
-                String replacement_characters = "/- ";
-                for (size_t j = 0; j < 2; j++) // This loop checks each of the unwanted character and replaces it with replacement character
-                {
-                        for (int i = 0; i < 19; i++)
-                        {
-                                if (raw_date_and_time[i] == unwanted_characters[j])
-                                        raw_date_and_time[i] = replacement_characters[j];
-                        }
-                }
-                Serial.println(raw_date_and_time);
+                raw_date_and_time = timeClient.getFormattedDate();
         }
         return raw_date_and_time;
 }
@@ -192,7 +181,6 @@ void setup_nrf24l01(void)
 {
         Serial.println("Setting up NRF");
         radio.begin();
-        radio.setPALevel(RF24_PA_MIN);
         Serial.println("NRF Setup");
 }
 
@@ -202,37 +190,47 @@ void setup_nrf24l01(void)
  * @param uint64_t: transmitting_address
  * @param String: transmission_message
  */
-void setup_nrf_in_writing_mode(uint64_t transmitting_address, String transmission_message)
+void setup_nrf_in_writing_mode(byte transmitting_address[], char transmission_message[], size_t message_length)
 {
-        radio.openWritingPipe(transmitting_address);
+        byte address[6] = "";
+        char message[32] = "";
+        for (size_t i = 0; i < 6; i++)
+        {
+                address[i] = transmitting_address[i];
+        }
+        for (size_t i = 0; i < message_length; i++)
+        {
+                message[i] = transmission_message[i];
+        }
+        radio.openWritingPipe(address);
+        radio.setPALevel(RF24_PA_MIN);
         radio.stopListening();
-        Serial.println("Setting up NRF in Writing Mode");
-        Serial.println(transmitting_address);
-        Serial.println(transmission_message);
-        radio.write(&transmission_message, sizeof(transmission_message));
-        Serial.println("Message Sent");
+        Serial.println(message);
+        radio.write(&message, message_length);
         delay(50);
+        i++;
 }
 
 /**
  * @brief Set the up nrf in listening mode
- *
+ *ḍ
  * @param uint64_t: recieving_address
  * @return string: recieved message
  */
-char *setup_nrf_in_listening_mode(uint64_t recieving_address)
+void setup_nrf_in_listening_mode(byte recieving_address[])
 {
-        Serial.println("Setting up NRF in Listening Mode");
-        Serial.println(recieving_address);
-        radio.openReadingPipe(0, recieving_address);
+        byte address[6] = "";
+        for (size_t i = 0; i < 6; i++)
+        {
+                address[i] = recieving_address[i];
+        }
+        radio.openReadingPipe(0, address);
+        radio.setPALevel(RF24_PA_MIN);
         radio.startListening();
         while (!radio.available())
         {
         }
-        char *recieved_text[32] = {};
-        radio.read(&recieved_text, sizeof(recieved_text));
-        Serial.println(*recieved_text);
-        return *recieved_text;
+        radio.read(&recieved_message, sizeof(recieved_message));
 }
 
 /**

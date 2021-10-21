@@ -5,23 +5,22 @@
 /*
 ! Connection of NRF24L01 with ESP8266
 
-NRF24L01 CSN  ============================ D2 ESP8266
-NRF24L01 CE   ============================ D4 ESP8266
-NRF24L01 SCK  ============================ D5 ESP8266
-NRF24L01 MISO ============================ D6 ESP8266
-NRF24L01 MOSI ============================ D7 ESP8266
+* NRF24L01 CE   ============================ D2 ESP8266
+* NRF24L01 CSN  ============================ D4 ESP8266
+* NRF24L01 SCK  ============================ D5 ESP8266
+* NRF24L01 MISO ============================ D6 ESP8266
+* NRF24L01 MOSI ============================ D7 ESP8266
 */
 
 #include <SPI.h>
 #include <nRF24L01.h>
-#include <RF24.h>           //Library: TMRh20/RF24, https://github.com/tmrh20/RF24/
-char *send_message[32];     // Variable used to store the message to be sent
-char *recieved_message[32]; // Variable used to store the recieved message
+#include <RF24.h> //Library: TMRh20/RF24, https://github.com/tmrh20/RF24/
 
-RF24 radio(4, 2); // CE, CSN
+RF24 radio(2, 4); // CE, CSN
 byte BROADCAST_RECIEVER_ADDRESS[6] = "boxit";
 String communication_array_device_id[100];        // Stores Device ID after reading from eeprom
 String communication_array_communication_id[100]; // Stores Communication ID after reading from eeprom
 int saved_boxes;                                  // regsiters how many boxes have been linked in eeprom
+char recieved_message[32] = "";
 
 #endif

@@ -6,8 +6,8 @@
 
 //! AWS IOT config details. These are the credentials to connect with AWS and with the Wifi:
 #ifdef WIFI_ON
-char WIFI_SSID[] = "NRF_Wifi";
-char WIFI_PASSWORD[] = "123456789";
+char WIFI_SSID[] = "abc";
+char WIFI_PASSWORD[] = "123@54321a";
 #endif
 char AWS_ENDPOINT[] = "ayru2i5e2th7e-ats.iot.us-east-2.amazonaws.com";
 char AWS_KEY[] = "AKIAQTTS4PUTBSHUMA47";

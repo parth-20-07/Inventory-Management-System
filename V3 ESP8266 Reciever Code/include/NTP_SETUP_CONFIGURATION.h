@@ -1,3 +1,13 @@
+/**
+ * @file NTP_SETUP_CONFIGURATION.h
+ * @author your name (you@domain.com)
+ * @brief https://microcontrollerslab.com/current-date-time-esp8266-nodemcu-ntp-server/
+ * @version 0.1
+ * @date 2021-10-18
+ *
+ * @copyright Copyright (c) 2021
+ *
+ */
 #ifndef NTP_SETUP_CONFIGURATION_H
 #define NTP_SETUP_CONFIGURATION_H
 #include <NTPClient.h>
