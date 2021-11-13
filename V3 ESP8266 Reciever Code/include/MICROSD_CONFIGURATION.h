@@ -3,10 +3,10 @@
 //========================================================//
 /*
 ! MicroSD Card Module Connection to ESP8266
-MicroSD Card Module CS   ====================== D8 ESP8266
-MicroSD Card Module MOSI ====================== D7 ESP8266
-MicroSD Card Module SCK  ====================== D5 ESP8266
-MicroSD Card Module MISO ====================== D6 ESP8266
+* MicroSD Card Module CS   ====================== D8 ESP8266
+* MicroSD Card Module MOSI ====================== D7 ESP8266
+* MicroSD Card Module SCK  ====================== D5 ESP8266
+* MicroSD Card Module MISO ====================== D6 ESP8266
 */
 //========================================================//
 
@@ -14,7 +14,6 @@ MicroSD Card Module MISO ====================== D6 ESP8266
 #include <SD.h>
 #include <string.h>
 const int chip_select = D8;
-int sd_card_status;
 String AWS_BACKLOG_FILE = "AWS_Backlog_file.txt";
 String file_extension = ".txt";
 //========================================================//

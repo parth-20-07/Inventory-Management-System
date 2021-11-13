@@ -31,54 +31,55 @@ TODO 9. Upload Data to AWS
 #include "MICROSD_CONFIGURATION.h"    // Contains all the SD Card Protocols
 #include "RANDOM_ADDRESS_GENERATOR.h" //Contains all the characters needed to generate random address
 #include "EEPROM_CONFIGURATION.h"     // Contains configuration files for EEPROM
+#include "PIN_CONNECTION.h"
 //================================================================//
 
 //! Function Definition
-String connect_to_ntp(void);
-String update_time_via_ntp(void);
 int connect_to_wifi(void);
+int connect_to_ntp(void);
+String update_time_via_ntp(void);
 void setup_nrf24l01(void);
 void setup_nrf_in_writing_mode(byte transmitting_address[], char transmission_message[], size_t message_length);
-void setup_nrf_in_listening_mode(byte recieving_address[]);
-int check_sd_module_connection(void);
-void upload_data_to_sd_card(String formatted_ntp_date_time, char *data_string);
-void sd_data_upload_aws_offline(String formatted_date_and_time, String data_string);
-void sd_data_write_and_read_then_upload_to_aws(String formatted_date_and_time, String data_string);
-void sd_card_data_write(String formatted_date_and_time, String file_name, String recieved_data);
-void write_to_default_location_on_sd(String formatted_data_time, String data_string);
+String setup_nrf_in_listening_mode(byte recieving_address[]);
 void upload_to_aws(String data_json);
 String string_to_json_converter(String data_string);
 String json_to_string_converter(String data_json);
-String create_formatted_string(String formatted_date_and_time, String data_string);
+String create_formatted_string(String raw_ntp_date_time, String data_string);
 void setup_eeprom(void);
 void generate_random_communication_address_and_save_to_eeprom(char box_or_reciever_code, String recieved_device_id);
 void update_communication_id_array(void);
+void set_reset_pin(void);
+void reset_device(void);
+void save_and_upload_data(String raw_time_and_date, String recieved_message);
+void check_sd_module_connection(void);
+void sd_data_upload_aws_offline(String raw_ntp_date_time, String data_string);
+void sd_data_write_and_read_then_upload_to_aws(String formatted_string_for_sd_card);
+String get_formatted_time(String raw_ntp_date_time);
+String create_formatted_string(String formatted_date_time, String data_string);
+void sd_card_data_write(String file_name, String formatted_data);
 
-int i;
+int wifi_connection_attempts = 0;
+
 // ! Initial Setup
 void setup()
 {
+        set_reset_pin();
         Serial.begin(115200);
-#ifdef WIFI_ON
-        connect_to_wifi();
         connect_to_ntp();
-#endif
         // setup_nrf24l01();
-        // sd_card_status = check_sd_module_connection();
+        // check_sd_module_connection();
         // setup_eeprom();
 }
 
 // ! Looped Code
 void loop()
 {
-#ifdef WIFI_ON
-        update_time_via_ntp();
-#endif
-        // setup_nrf_in_writing_mode(BROADCAST_RECIEVER_ADDRESS, periodic_data_update_request, sizeof(periodic_data_update_request));
-        // setup_nrf_in_listening_mode(BROADCAST_RECIEVER_ADDRESS);
-        // Serial.println(recieved_message);
-        // upload_data_to_sd_card(formatted_date_and_time, *recieved_message);
-        // Serial.println("\n\n\n");
+        String raw_time_and_date = update_time_via_ntp();
+        Serial.println("Raw Time: " + raw_time_and_date);
+        get_formatted_time(raw_time_and_date);
+        //        setup_nrf_in_writing_mode(BROADCAST_RECIEVER_ADDRESS, periodic_data_update_request, sizeof(periodic_data_update_request));
+        //        String recieved_message = setup_nrf_in_listening_mode(BROADCAST_RECIEVER_ADDRESS);
+        //        save_and_upload_data(raw_time_and_date, recieved_message);
         delay(1000);
 }
 
@@ -92,8 +93,6 @@ void loop()
  */
 int connect_to_wifi(void)
 {
-        Serial.begin(115200);
-        delay(3000);
         Serial.println("\n\nAttempting to connect to Wifi");
         WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
         int connection_attempt = 0;
@@ -107,17 +106,24 @@ int connect_to_wifi(void)
         switch (WiFi.status())
         {
         case 3: // WL_CONNECTED = 3: Connection Successful
-                Serial.println("Wifi connect success of SSID: " + String(WIFI_SSID));
+                Serial.println("Wifi connected to SSID: " + String(WIFI_SSID));
                 break;
         case 1: // WL_NO_SSID_AVAIL = 1: Wifi not in range
-                Serial.println("Cannot Find SSID, Check if router in Range!");
+                Serial.println("Cannot Find SSID " + (String)WIFI_SSID + ", Check if router in Range!");
                 break;
         case 4: // WL_CONNECT_FAILED = 4: Connection failed
                 Serial.println("Wifi Connection Failed!");
                 break;
-        default: // Cannot find the error due to which wifi cannot be connected
-                Serial.println("Wifi Connection Error! Cannot Diagnose Issue");
+        default:
+                Serial.println("Unable to connect to Wifi");
                 break;
+        }
+        wifi_connection_attempts++;
+        Serial.println("COnnection Attempt: " + wifi_connection_attempts);
+        if (wifi_connection_attempts > 5)
+        {
+                Serial.println("Resetting Device");
+                reset_device();
         }
         return WiFi.status();
 }
@@ -127,26 +133,26 @@ int connect_to_wifi(void)
  *
  * @return String: Formatted Time: YYYY/MM/DD-HH:MM:SS
  */
-String connect_to_ntp(void)
+int connect_to_ntp()
 {
+        int wifi_status = 0;
         Serial.println("Starting NTP Connection");
         if (WiFi.status() != WL_CONNECTED)
         { // Checks if wifi is connected
                 Serial.println("Wifi disconnected");
-                connect_to_wifi();
+                wifi_status = connect_to_wifi();
         }
         if (WiFi.status() == WL_CONNECTED) // Wifi Connection Successful
         {
-                Serial.println("Wifi Available");
+                Serial.println("Wifi Connected");
                 timeClient.begin();
-                return update_time_via_ntp();
         }
         else
         {
                 Serial.println("Unable to connect to wifi. Time Update Failed");
                 String default_time_if_ntp_fails = "2020/01/01-00:00:00"; // A default time returned if ntp fails to update. Update the time here when RTC is connected
-                return default_time_if_ntp_fails;
         }
+        return wifi_status;
 }
 
 /**
@@ -156,8 +162,11 @@ String connect_to_ntp(void)
  */
 String update_time_via_ntp(void)
 {
+        Serial.println("Updating NTP Time");
+        delay(50);
         if (WiFi.status() != WL_CONNECTED)
         { // Checks if wifi is connected
+                Serial.println("Wifi not connected");
                 connect_to_wifi();
         }
         String raw_date_and_time;
@@ -208,7 +217,6 @@ void setup_nrf_in_writing_mode(byte transmitting_address[], char transmission_me
         Serial.println(message);
         radio.write(&message, message_length);
         delay(50);
-        i++;
 }
 
 /**
@@ -217,7 +225,7 @@ void setup_nrf_in_writing_mode(byte transmitting_address[], char transmission_me
  * @param uint64_t: recieving_address
  * @return string: recieved message
  */
-void setup_nrf_in_listening_mode(byte recieving_address[])
+String setup_nrf_in_listening_mode(byte recieving_address[])
 {
         byte address[6] = "";
         for (size_t i = 0; i < 6; i++)
@@ -227,10 +235,12 @@ void setup_nrf_in_listening_mode(byte recieving_address[])
         radio.openReadingPipe(0, address);
         radio.setPALevel(RF24_PA_MIN);
         radio.startListening();
+        char recieved_message[32] = "";
         while (!radio.available())
         {
         }
         radio.read(&recieved_message, sizeof(recieved_message));
+        return (String)recieved_message;
 }
 
 /**
@@ -238,24 +248,26 @@ void setup_nrf_in_listening_mode(byte recieving_address[])
  * if its connected, then it uploads the data to AWS and saves it to the default folder.
  * If AWS is not connected, then the data is stored in the AWS_Backlog_file.txt
  *
- * @param String: formatted_ntp_date_time
+ * @param String: raw_ntp_date_time
  * @param String: data_string
  */
-void upload_data_to_sd_card(String formatted_ntp_date_time, char *data_string)
+void save_and_upload_data(String raw_time_and_date, String recieved_message)
 {
-        //* Get the lastest NTP Time
+        String formatted_time = get_formatted_time(raw_time_and_date);
+        String file_name = formatted_time.substring(0, 9) + file_extension;
+        String formatted_string_for_sd_card = create_formatted_string(formatted_time, recieved_message);
         //! if () Check AWS Connection
         int AWS_Connected = 0;
         if (AWS_Connected) // if AWS is connected
         {
-                sd_data_write_and_read_then_upload_to_aws(formatted_ntp_date_time, data_string);
-                write_to_default_location_on_sd(formatted_ntp_date_time, data_string);
+                sd_data_write_and_read_then_upload_to_aws(formatted_string_for_sd_card);
+                sd_card_data_write(file_name, formatted_string_for_sd_card);
         }
         else // AWS is offline
         {
                 Serial.println("AWS is offline, uploading to backlog file and the default location");
-                sd_data_upload_aws_offline(formatted_ntp_date_time, data_string);
-                write_to_default_location_on_sd(formatted_ntp_date_time, data_string);
+                sd_card_data_write(AWS_BACKLOG_FILE, formatted_string_for_sd_card);
+                sd_card_data_write(file_name, formatted_string_for_sd_card);
         }
 }
 
@@ -266,27 +278,21 @@ void upload_data_to_sd_card(String formatted_ntp_date_time, char *data_string)
  * Success: 1
  * Failure: 0
  */
-int check_sd_module_connection(void)
+void check_sd_module_connection(void)
 {
         if (!SD.begin(chip_select))
         {
                 Serial.println("SD Card failed, or not present");
-                return 0;
         }
         Serial.println("SD Card Initialized.");
-        return 1;
 }
 
 /**
  * @brief This function is used when the AWS is offline and we write on AWS_Backlog_file.txt
  *
- * @param String formatted_date_and_time
+ * @param String raw_ntp_date_time
  * @param String data_string_recieved_from_box
  */
-void sd_data_upload_aws_offline(String formatted_date_and_time, String data_string)
-{
-        sd_card_data_write(formatted_date_and_time, AWS_BACKLOG_FILE, data_string);
-}
 
 /**
  * @brief This function is used when the AWS is online
@@ -294,57 +300,71 @@ void sd_data_upload_aws_offline(String formatted_date_and_time, String data_stri
  * Then the file is opened again in read mode and line by line all the previous data is converted to json
  * the json is then uploaded to aws
  *
- * @param String formatted_date_and_time
+ * @param String raw_ntp_date_time
  * @param String data_string_recieved_from_box
  */
-void sd_data_write_and_read_then_upload_to_aws(String formatted_date_and_time, String data_string)
+void sd_data_write_and_read_then_upload_to_aws(String formatted_string_for_sd_card)
 {
-        sd_card_data_write(formatted_date_and_time, AWS_BACKLOG_FILE, data_string);
         File dataFile = SD.open(AWS_BACKLOG_FILE, FILE_READ);
         while (dataFile.available())
         {
                 char data_string = dataFile.read();
-                String upload_json = string_to_json_converter((String)data_string);
+                String upload_json = string_to_json_converter(formatted_string_for_sd_card);
                 upload_to_aws(upload_json);
         }
         dataFile.close();            // CLose the file
         SD.remove(AWS_BACKLOG_FILE); // Remove the file after all the data is being retrieved and uploaded
 }
 
-/**
- * @brief This function opens a file and writes to it
- *
- * @param String formatted_date_and_time
- * @param String file_name
- * @param String recieved_data
- */
-void sd_card_data_write(String formatted_date_and_time, String file_name, String recieved_data)
+String get_formatted_time(String raw_ntp_date_time)
 {
-        String data_string = create_formatted_string(formatted_date_and_time, recieved_data);
-        File dataFile = SD.open(AWS_BACKLOG_FILE, FILE_WRITE);
-        dataFile.println(data_string);
-        dataFile.close();
+        int current_characters[4] = {4, 7, 10, 19}; //2021-10-21T15:18:13Z
+        char replacement_characters[4] = {'/', '/', '-', ' '};
+        for (size_t i = 0; i < 4; i++)
+        {
+                raw_ntp_date_time[current_characters[i]] = replacement_characters[i];
+        }
+        Serial.println("Formatted Time: " + raw_ntp_date_time);
+        return raw_ntp_date_time;
 }
 
 /**
- * @brief Writes on the default organized location in format YYYY/MM/DD.txt format
+ * @brief Creates the string in the required format by joining time and the data_string
  *
- * @param String: formatted_data_time
+ * @param String: raw_ntp_date_time
  * @param String: data_string
+ * @return String: Formatted String to be saved into file
  */
-void write_to_default_location_on_sd(String formatted_data_time, String data_string)
+String create_formatted_string(String formatted_date_time, String data_string)
 {
-        String year_directory = formatted_data_time.substring(0, 7); // YYYY/MM/DD-HH:MM:SS => YYYY/MM/
-        String date = formatted_data_time.substring(8, 9);           // YYYY/MM/DD-HH:MM:SS => DD.txt
-        String time_stamp = formatted_data_time.substring(11, 18);   // YYYY/MM/DD-HH:MM:SS => HH:MM:SS
-        String date_file = date + file_extension;
-        Serial.println(year_directory);
-        Serial.println(date_file);
-        if (!SD.exists(year_directory))
+        String formatted_time = formatted_date_time.substring(11, 18);
+        String formatted_string = formatted_time + data_string;
+        Serial.println("Formatted String: " + formatted_string);
+        return formatted_string;
+}
+
+/**
+ * @brief This function opens a file and writes to it
+ *
+ * @param String raw_ntp_date_time
+ * @param String file_name
+ * @param String recieved_data
+ */
+void sd_card_data_write(String file_name, String formatted_data)
+{
+        if (file_name != AWS_BACKLOG_FILE)
         {
-                SD.mkdir(year_directory);
-                sd_card_data_write(formatted_data_time, date_file, data_string);
+                String file_directory = file_name.substring(0, 7); // YYYY/MM/DD-HH:MM:SS => YYYY/MM/
+                Serial.println("File Directory: " + file_directory);
+                Serial.println(formatted_data);
+                if (!SD.exists(file_directory))
+                {
+                        SD.mkdir(file_directory);
+                }
         }
+        File dataFile = SD.open(file_name, FILE_WRITE);
+        dataFile.println(formatted_data);
+        dataFile.close();
 }
 
 /**
@@ -378,18 +398,6 @@ String json_to_string_converter(String data_json)
 {
         String data_string = "";
         return data_string;
-}
-
-/**
- * @brief Creates the string in the required format by joining time and the data_string
- *
- * @param String: formatted_date_and_time
- * @param String: data_string
- * @return String: Formatted String to be saved into file
- */
-String create_formatted_string(String formatted_date_and_time, String data_string)
-{
-        return formatted_date_and_time + data_string;
 }
 
 /**
@@ -466,3 +474,13 @@ void setup_eeprom(void)
 //                 communication_array_communication_id[i] = eeprom_read_string.substring(10, 14); // CCCCC
 //         }
 // }
+
+void set_reset_pin(void)
+{
+        pinMode(rst_pin, OUTPUT);
+        digitalWrite(rst_pin, HIGH);
+}
+void reset_device(void)
+{
+        digitalWrite(rst_pin, LOW);
+}
