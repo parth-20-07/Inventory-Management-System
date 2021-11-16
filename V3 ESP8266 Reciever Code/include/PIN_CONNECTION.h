@@ -21,16 +21,28 @@
 * ESP8266 SD2 =================== Rotary Encoder DT
 * ESP8266 SD3 =================== Rotary Encoder I/O
 */
-#define NRF24_CE D0
-#define I2C_SCL D1
-#define I2C_SDA D2
-#define RTC_CS D3
-#define NRF24_CSN D4
-#define RGB_Ring_D1 D5
-#define Rotary_Encoder_CLK D6
-#define Rotary_Encoder_SW D7
-#define Serial_Clock SCK
-#define SD_Card_CS CMD
-#define Rotary_Encoder_DT D9
-#define RTC_IO D10
+#define MOSI 23
+#define SCL 22
+#define TXD0 1
+#define RXD0 3
+#define SDA 21
+#define MISO 19
+#define SCK 18
+#define NRF24_CSN 5
+#define GPIO17 17
+#define GPIO16 16
+#define NRF24_CE 4
+#define GPIO2 2
+#define SD_CS 15
+#define GPIO34 34
+#define GPIO35 35
+#define GPIO32 32
+#define RE_SW 33
+#define RE_DT 25
+#define RE_CLK 26
+#define RGB_D1 27
+#define GPIO14 14
+#define GPIO12 12
+#define GPIO13 13
+
 #endif
