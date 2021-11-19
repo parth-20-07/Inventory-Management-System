@@ -41,7 +41,7 @@
 #define RE_DT 25
 #define RE_CLK 26
 #define RGB_D1 27
-#define GPIO14 14
+#define BUZZER 14
 #define GPIO12 12
 #define GPIO13 13
 
