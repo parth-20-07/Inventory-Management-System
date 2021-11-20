@@ -1071,8 +1071,19 @@ void send_Success_Data(String box_id, String command, int success_status, String
     doc["Box ID"] = box_id;
     doc["cmd"] = command;
     doc["success"] = success_status;
-    doc["param1"] = param1;
-    doc["param2"] = param2;
+    if (command == "add")
+    {
+        doc["Box Address"] = param1;
+    }
+    else if (command == "calibration_update")
+    {
+        doc["Calibration Data"] = param1;
+    }
+    else if (command = "change")
+    {
+        doc["st"] = param1;
+        doc["bt"] = param2;
+    }
     serializeJson(doc, Serial);
     serializeJsonPretty(doc, Serial);
     // The above line prints:
