@@ -13,16 +13,12 @@ const char *password = WIFI_PASSWORD;
 const char *ntpServer = "asia.pool.ntp.org";
 const long gmtOffset_sec = 19800; // +5:30 = (5*60*60) + (30*60) = 19800
 const int daylightOffset_sec = 0; // India doesn't observe DayLight Saving
-struct time_struct
-{
-    uint16_t year;
-    uint8_t month;
-    uint8_t date;
-    uint8_t hour;
-    uint8_t minutes;
-    uint8_t seconds;
-};
-struct time_struct latest_time;
+uint16_t year;
+uint8_t month;
+uint8_t date;
+uint8_t hour;
+uint8_t minutes;
+uint8_t seconds;
 
 //! RTC DS3231 Setup
 //Reference: https://how2electronics.com/esp32-ds3231-based-real-time-clock/
@@ -35,6 +31,7 @@ RTC_DS3231 rtc;
 //Reference: https://randomnerdtutorials.com/esp32-ssd1306-oled-display-arduino-ide/
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include "COMPANY_LOGO.c"
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 #define OLED_RESET -1    // Reset pin # (or -1 if sharing reset pin)
@@ -93,8 +90,9 @@ String BOX_DETAILS[MAX_BOXES][2];
 #include <ReadLines.h> //https://github.com/mykeels/ReadLines/blob/master/examples/print-line-and-index/print-line-only.ino
 const char AWS_BACKLOG_FILE[] = "AWS_Backlog_file.txt";
 const char NRF_COMMUNICATION_ADDRESS_FILE[] = "NRF_Communication_file.txt";
-const char BOX_ID_DETAILS_FILE[] = "Box_ID_Details.txt";
-const char file_extension[] = ".txt";
+char BOX_ID_DETAILS_FILE[] = "Box_ID_Details.txt";
+char file_extension[] = ".txt";
+char line1[RL_MAX_CHARS];
 
 //! Encoder Setup
 //Reference: https://howtomechatronics.com/tutorials/arduino/rotary-encoder-works-use-arduino/
@@ -122,96 +120,192 @@ Adafruit_NeoPixel pixels(NUMPIXELS, RGB_D1, NEO_GRB + NEO_KHZ800);
 WiFiClientSecure net;
 MQTTClient client;
 
+//! Setting Up Timers
+//Reference: https://diyprojects.io/esp32-timers-alarms-interrupts-arduino-code/#.YZjLhaJBzDe
+/*
+Timer of 5 mins needs to be made
+That is 5*60 sec = 300 sec.
+Prescalar possible: 
+- 2^8 = 256 = 4 mins 16 secs We are choosing this option as this is closest to the required timer
+- 2^9 = 512 = 8 mins 32 secs
+*/
+#define ESP32_CLOCK 80000000 // 80MHz Clock on ESP32
+#define PRESCALAR 256        // Prescalar creates a timer to set the alarm for 4 min 16 sec
+hw_timer_t *timer = NULL;
+
+//! Setting up EEPROM
+//Reference: https://randomnerdtutorials.com/esp32-flash-memory/
+// We are using EEPROM to store the number of boxes connected with the reciever
+#include <EEPROM.h>
+#define EEPROM_SIZE 1
+#define CONNECTED_BOXES_STORED_LOCATION 0
+
 //! Function Definition
+void configure_timer();
+void IRAM_ATTR onTime();
+void print_company_logo();
+int printLocalTime();
+void wifi_ntp_setup(void);
 void rtc_setup();
+void rtc_get_time();
+void oled_setup();
 void update_oled(String text1, String text2, String text3);
-void halt_rgb_ring(int led_number);
+void oled_menu_update(String item1, String item2, String item3);
+void write_radio(char transmission_address[], String transmission_message);
+String read_radio(char recieving_address[]);
+void createDir(fs::FS &fs, const char *path);
+int readFile(fs::FS &fs, const char *path);
+void writeFile(fs::FS &fs, const char *path, const char *message);
+void appendFile(fs::FS &fs, const char *path, const char *message);
+void sd_setup();
+void read_rotary_encoder();
 void solid_rgb_ring(uint32_t color);
-void send_Success_Data(String box_id, String command, int success_status, String param1, String param2);
-void sendData(String message);
-void connectToMqtt(bool nonBlocking);
+void halt_rgb_ring(int led_number);
+void pin_setup();
+void rgb_ring_setup();
+void read_box_details_from_sd_card();
+void handleEachLine(char line[], int lineIndex);
+String fetch_box_address(String box_id);
+void add_new_box(String box_id);
+void calibrate_box(String box_id, String box_address);
+void update_box_data(String box_id, String box_address);
+void change_box_setting(String box_id, String box_address, String dt, String st, String bt);
+void sound_buzzer(String box_id);
+void aws_setup();
 void messageReceived(String &topic, String &payload);
+void lwMQTTErr(lwmqtt_err_t reason);
+void lwMQTTErrConnection(lwmqtt_return_code_t reason);
+void connectToMqtt(bool nonBlocking);
+void connectToWiFi(String init_str);
+void checkWiFiThenMQTT(void);
+void checkWiFiThenMQTTNonBlocking(void);
+void checkWiFiThenReboot(void);
+void send_Success_Data(String box_id, String command, int success_status, String param1, String param2);
+void sendData(String box_id, String message);
 
 //! Function Declaration
 
+void configure_timer()
+{
+    Serial.println("Configuring Timers");
+    update_oled("Setting", "Up", "Timer");
+    solid_rgb_ring(RED_COLOR);
+    timer = timerBegin(0, PRESCALAR, true);
+    timerAttachInterrupt(timer, &onTime, true);
+    timerAlarmWrite(timer, (ESP32_CLOCK / PRESCALAR), true);
+    timerAlarmEnable(timer);
+    update_oled("Timer", "Setup", "Done");
+    solid_rgb_ring(GREEN_COLOR);
+    return;
+}
+
+void IRAM_ATTR onTime()
+{
+    Serial.println("Entering Timer ISR");
+    rtc_get_time();
+    connected_boxes = EEPROM.read(CONNECTED_BOXES_STORED_LOCATION);
+    for (int i = 0; i < connected_boxes; i++)
+    {
+        halt_rgb_ring(i);
+        String box_id = BOX_DETAILS[i][0];
+        String address = BOX_DETAILS[i][1];
+        update_oled("Contacting", "Box", box_id);
+        update_box_data(box_id, address);
+    }
+}
+
+void print_company_logo()
+{
+    Serial.println("Printing Company Logo");
+    display.clearDisplay();
+    display.drawBitmap(0, 0, COMPANY_LOGO, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
+    display.display();
+}
+
 int printLocalTime()
 {
-    solid_rgb_ring(RED_COLOR);
     update_oled("Updating", "NTP", "");
+    Serial.println("Fetching Latest Time from NTP");
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo))
     {
         update_oled("NTP", "Update", "Failed");
         solid_rgb_ring(GREEN_COLOR);
+        rtc_get_time();
         return EXIT_FAILURE;
     }
+    year = timeinfo.tm_year - 100;
+    month = timeinfo.tm_mon + 1;
+    date = timeinfo.tm_mday;
+    hour = timeinfo.tm_hour;
+    minutes = timeinfo.tm_min;
+    seconds = timeinfo.tm_sec;
     update_oled("NTP", "Update", "Success");
-    latest_time.year = timeinfo.tm_year - 100;
-    latest_time.month = timeinfo.tm_mon + 1;
-    latest_time.date = timeinfo.tm_mday;
-    update_oled((String)latest_time.year, (String)latest_time.month, (String)latest_time.date);
-    Serial.println((String)latest_time.year + '/' + (String)latest_time.month + '/' + (String)latest_time.date);
-    latest_time.hour = timeinfo.tm_hour;
-    latest_time.minutes = timeinfo.tm_min;
-    latest_time.seconds = timeinfo.tm_sec;
-    update_oled((String)latest_time.hour, (String)latest_time.minutes, (String)latest_time.seconds);
-    Serial.println((String)latest_time.hour + ':' + (String)latest_time.minutes + ':' + (String)latest_time.seconds);
-    rtc_setup();
+    Serial.println("Time from NTP:\n" + (String)year + '/' + (String)month + '/' + (String)date + '\n' + (String)hour + ':' + (String)minutes + ':' + (String)seconds);
+    update_oled("RTC", "Updating", "");
+    rtc.adjust(DateTime(year, month, date, hour, minutes, seconds));
+    update_oled("RTC", "Updated", "");
     return EXIT_SUCCESS;
 }
 
 void wifi_ntp_setup(void)
 {
     //connect to WiFi
-    solid_rgb_ring(RED_COLOR);
-    Serial.printf("Connecting to %s ", ssid);
+    Serial.println("Setting up WiFi and NTP");
     update_oled("Wifi", "Connecting", ssid);
+    solid_rgb_ring(RED_COLOR);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(50);
         Serial.print(".");
     }
-    Serial.println(" CONNECTED");
+    Serial.println("CONNECTED");
     update_oled("Wifi", "Connected", ssid);
-    update_oled("Connecting", "NTP", ""); //init and get the time
+    delay(1000);
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     solid_rgb_ring(GREEN_COLOR);
+    rtc_setup();
     printLocalTime();
 }
 
 void rtc_setup()
 {
-    solid_rgb_ring(RED_COLOR);
     update_oled("RTC", "Connecting", "");
+    Serial.println("Setting up RTC");
+    solid_rgb_ring(RED_COLOR);
     if (!rtc.begin())
     {
         Serial.println("Couldn't find RTC");
         while (1)
             ;
-        rtc.adjust(DateTime(latest_time.year, latest_time.month, latest_time.date, latest_time.hour, latest_time.minutes, latest_time.seconds));
     }
-    update_oled("RTC", "Updated", "");
+    Serial.println("RTC Setup Donw");
+    update_oled("RTC", "Setup", "Done");
     solid_rgb_ring(GREEN_COLOR);
 }
 
 void rtc_get_time()
 {
+    Serial.println("Fetching Time from RTC");
+    update_oled("RTC", "Updating", "");
     solid_rgb_ring(RED_COLOR);
-    update_oled("NTP", "Updating", "");
     DateTime now = rtc.now();
-    latest_time.year = now.year();
-    latest_time.month = now.month();
-    latest_time.seconds = now.second();
-    latest_time.hour = now.hour();
-    latest_time.minutes = now.minute();
-    latest_time.seconds = now.second();
+    Serial.println("RTC Update Successful");
+    year = now.year();
+    month = now.month();
+    seconds = now.second();
+    hour = now.hour();
+    minutes = now.minute();
+    seconds = now.second();
+    Serial.println("Time from RTC:\n" + (String)year + '/' + (String)month + '/' + (String)date + '\n' + (String)hour + ':' + (String)minutes + ':' + (String)seconds);
+    update_oled("NTP", "Updated", "");
     solid_rgb_ring(GREEN_COLOR);
 }
 
 void oled_setup()
 {
-    solid_rgb_ring(RED_COLOR);
+    Serial.println("Setting up OLED");
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
     {
         Serial.println(F("SSD1306 allocation failed"));
@@ -219,20 +313,17 @@ void oled_setup()
             ; // Don't proceed, loop forever
     }
     display.clearDisplay();
-    display.setTextColor(WHITE);
-    //display.startscrollright(0x00, 0x0F);
-    display.setTextSize(OLED_MENU_TEXT_SIZE);
-    display.setCursor(0, 5);
-    display.print("Initializing...");
-    display.display();
-    delay(1000);
+    print_company_logo();
+    solid_rgb_ring(RED_COLOR);
+    solid_rgb_ring(YELLOW_COLOR);
     solid_rgb_ring(GREEN_COLOR);
+    solid_rgb_ring(BLUE_COLOR);
 }
 
 void update_oled(String text1, String text2, String text3)
 {
+    Serial.println("Updating OLED to:\n" + text1 + '\n' + text2 + '\n' + text3);
     display.clearDisplay();
-
     display.setTextSize(OLED_MENU_TEXT_SIZE);
     display.setTextColor(WHITE);
     display.setCursor(0, 0);
@@ -273,8 +364,9 @@ void write_radio(char transmission_address[], String transmission_message)
     radio.openWritingPipe(address);
     radio.setPALevel(RF24_PA_MIN);
     radio.stopListening();
-    radio.write(&transmission_message, sizeof(transmission_message));
     delay(100);
+    radio.write(&transmission_message, sizeof(transmission_message));
+    delay(500);
 }
 
 String read_radio(char recieving_address[])
@@ -295,6 +387,11 @@ String read_radio(char recieving_address[])
         update_oled("Recieved", "Message", "via NRF");
         radio.read(&recieved_message, sizeof(recieved_message));
     }
+    else
+    {
+        update_oled("Failed", "Message", "via NRF");
+    }
+    delay(100);
     return recieved_message;
 }
 
@@ -363,8 +460,8 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
 
 void appendFile(fs::FS &fs, const char *path, const char *message)
 {
-    solid_rgb_ring(RED_COLOR);
     update_oled("Appending", "File to", "MicroSD");
+    solid_rgb_ring(RED_COLOR);
     Serial.printf("Appending to file: %s\n", path);
 
     File file = fs.open(path, FILE_APPEND);
@@ -386,84 +483,24 @@ void appendFile(fs::FS &fs, const char *path, const char *message)
     solid_rgb_ring(GREEN_COLOR);
 }
 
-void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
-{
-    Serial.printf("Listing directory: %s\n", dirname);
-
-    File root = fs.open(dirname);
-    if (!root)
-    {
-        Serial.println("Failed to open directory");
-        return;
-    }
-    if (!root.isDirectory())
-    {
-        Serial.println("Not a directory");
-        return;
-    }
-
-    File file = root.openNextFile();
-    while (file)
-    {
-        if (file.isDirectory())
-        {
-            Serial.print("  DIR : ");
-            Serial.println(file.name());
-            if (levels)
-            {
-                listDir(fs, file.name(), levels - 1);
-            }
-        }
-        else
-        {
-            Serial.print("  FILE: ");
-            Serial.print(file.name());
-            Serial.print("  SIZE: ");
-            Serial.println(file.size());
-        }
-        file = root.openNextFile();
-    }
-}
-
-void removeDir(fs::FS &fs, const char *path)
-{
-    Serial.printf("Removing Dir: %s\n", path);
-    if (fs.rmdir(path))
-    {
-        Serial.println("Dir removed");
-    }
-    else
-    {
-        Serial.println("rmdir failed");
-    }
-}
-
 void sd_setup()
 {
-    solid_rgb_ring(RED_COLOR);
     update_oled("Setting", "up", "MicroSD");
+    Serial.println("Setting up SD Card");
+    solid_rgb_ring(RED_COLOR);
     if (!SD.begin(SD_CS))
     {
         Serial.println("Card Mount Failed");
         update_oled("MicroSD", "Mount", "Failed");
         return;
     }
-
-    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-    Serial.printf("SD Card Size: %lluMB\n", cardSize);
-    createDir(SD, "/mydir");
-    writeFile(SD, "/hello.txt", "Hello ");
-    appendFile(SD, "/hello.txt", "World!\n");
-    readFile(SD, "/hello.txt");
-    readFile(SD, "/foo.txt");
-    Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
-    Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
+    update_oled("MicroSD", "Setup", "Done");
     solid_rgb_ring(GREEN_COLOR);
 }
 
 void read_rotary_encoder()
 {
-    solid_rgb_ring(BLUE_COLOR);
+    Serial.println("Enabling Rotary Encoder");
     //TODO Pause all timers
     update_oled("Starting", "to read", "Rotary Enc.");
     String item1, item2, item3;
@@ -564,11 +601,12 @@ void read_rotary_encoder()
             delay(500);
         }
     }
-    solid_rgb_ring(GREEN_COLOR);
+    solid_rgb_ring(BLUE_COLOR);
 }
 
 void solid_rgb_ring(uint32_t color)
 {
+    Serial.println("Setting up RGB Color");
     pixels.clear();
     for (size_t i = 0; i < NUMPIXELS; i++)
     {
@@ -595,9 +633,16 @@ void pin_setup()
 
 void rgb_ring_setup()
 {
-
+    Serial.println("Setting up RGB Ring");
     pixels.begin();
-    pixels.setBrightness(25);
+    pixels.setBrightness(BRIGHTNESS * 255 / 100);
+}
+
+void read_box_details_from_sd_card()
+{
+    Serial.println("Reading Box Details from SD Card");
+    RL.readLines(BOX_ID_DETAILS_FILE, &handleEachLine);
+    Serial.println("File Read Complete");
 }
 
 void handleEachLine(char line[], int lineIndex)
@@ -617,32 +662,35 @@ void handleEachLine(char line[], int lineIndex)
     }
     BOX_DETAILS[lineIndex][0] = (String)box_id;
     BOX_DETAILS[lineIndex][1] = (String)address;
+    Serial.println("Box ID: " + BOX_DETAILS[lineIndex][0] + '\n' + "Box Address" + BOX_DETAILS[lineIndex][1]);
 }
 
-// void read_box_details_from_sd_card()
-// {
-//     char line1[RL_MAX_CHARS];
-//     RL.readLines(BOX_ID_DETAILS_FILE, &handleEachLine);
-// }
-
-void add_new_box(String box_id_details)
+String fetch_box_address(String box_id)
 {
-
-    srand(time(0));
-
-    char box_id[BOX_ID_LENGTH];
-    for (int i = 0; i < BOX_ID_LENGTH; i++)
+    int i;
+    for (i = 0; i < connected_boxes; i++)
     {
-        box_id[i] = box_id_details[i];
+        String box = BOX_DETAILS[i][0];
+        if (box == box_id)
+        {
+            break;
+        }
     }
+    String address = BOX_DETAILS[i][1];
+    return address;
+}
 
+void add_new_box(String box_id)
+{
+    update_oled("Adding", "New Box", box_id);
+    srand(time(0));
     char address[COMMUNICATION_ID_LENGTH];
     for (int i = 0; i < COMMUNICATION_ID_LENGTH; i++)
     {
         address[i] = alphabet[rand() % (AVAILABLE_CHARACTERS - 1)];
     }
 
-    String message = "pair," + (String)box_id + "," + (String)address;
+    String message = "pair," + box_id + "," + (String)address;
     write_radio(BROADCAST_RECIEVER_ADDRESS, message);
 
     String recieved_message = read_radio(address);
@@ -651,6 +699,10 @@ void add_new_box(String box_id_details)
     if (recieved_message = ("pair,ok," + (String)box_id))
     {
         connection_status = 1;
+        connected_boxes = EEPROM.read(CONNECTED_BOXES_STORED_LOCATION);
+        connected_boxes++;
+        EEPROM.write(CONNECTED_BOXES_STORED_LOCATION, connected_boxes);
+        EEPROM.commit();
         char sd_message[BOX_ID_LENGTH + COMMUNICATION_ID_LENGTH];
         for (int i = 0; i < (BOX_ID_LENGTH + COMMUNICATION_ID_LENGTH); i++)
         {
@@ -664,22 +716,31 @@ void add_new_box(String box_id_details)
             }
         }
         appendFile(SD, BOX_ID_DETAILS_FILE, sd_message);
+        read_box_details_from_sd_card();
+        update_oled("Added", "New Box", box_id);
     }
-    send_Success_Data((String)box_id, "add", connection_status, (String)address, "");
+    else
+    {
+        update_oled("Failed", "New Box", box_id);
+    }
+    if (!client.connected())
+    {
+        checkWiFiThenMQTT();
+    }
+    else
+    {
+        client.loop();
+        send_Success_Data((String)box_id, "add", connection_status, (String)address, "");
+    }
 }
 
-void calibrate_box(String box_id_details)
+void calibrate_box(String box_id, String box_address)
 {
-    char box_id[BOX_ID_LENGTH];
-    for (int i = 0; i < BOX_ID_LENGTH; i++)
-    {
-        box_id[i] = box_id_details[i];
-    }
-
+    update_oled("Calibrating", "Box", box_id);
     char address[COMMUNICATION_ID_LENGTH];
     for (int i = 0; i < COMMUNICATION_ID_LENGTH; i++)
     {
-        // TODO: Get communication address from saved data table
+        address[i] = box_address[i];
     }
 
     String message = "cali";
@@ -692,40 +753,95 @@ void calibrate_box(String box_id_details)
     {
         connection_status = 1;
     }
-
-    send_Success_Data((String)box_id, "calibrate", connection_status, "", "");
+    if (!client.connected())
+    {
+        checkWiFiThenMQTT();
+    }
+    else
+    {
+        client.loop();
+        send_Success_Data((String)box_id, "calibrate", connection_status, "", "");
+    }
     delay(30 * 1000);
 
     write_radio(address, "calibration_data_update");
     String update_message = read_radio(address);
-    send_Success_Data((String)box_id, "calibration_update", connection_status, update_message, "");
+    if (update_message != "")
+    {
+        update_oled("Calibration", "Successful", box_id);
+        if (!client.connected())
+        {
+            checkWiFiThenMQTT();
+        }
+        else
+        {
+            client.loop();
+            send_Success_Data((String)box_id, "calibration_update", connection_status, update_message, "");
+        }
+    }
 }
 
-void update_box_data(String box_id, String nrf_communication_address = "")
+void update_box_data(String box_id, String box_address)
 {
-    if (nrf_communication_address == NULL)
-    {
-        //TODO: Search in table
-    }
+    update_oled("Detching", "Update", box_id);
     char address[COMMUNICATION_ID_LENGTH];
     for (int i = 0; i < COMMUNICATION_ID_LENGTH; i++)
     {
-        address[i] = nrf_communication_address[i];
+        address[i] = box_address[i];
     }
 
-    String message = "updt";
-    write_radio(address, message);
+    String write_message = "updt";
+    write_radio(address, write_message);
 
-    String recieved_message = box_id + read_radio(address);
-    sendData(recieved_message);
+    String message = read_radio(address);
+    if (message != "")
+    {
+        String str_sd_message = box_id + message;
+        int msg_size = sizeof(str_sd_message) / sizeof(str_sd_message[0]);
+        char sd_message[msg_size];
+        for (int i = 0; i < msg_size; i++)
+        {
+            sd_message[i] = str_sd_message[i];
+        }
+
+        String str_dir = (String)year + (String)month;
+        int dir_size = sizeof(str_dir) / sizeof(str_dir[0]);
+        char dir[dir_size];
+        for (int i = 0; i < dir_size; i++)
+        {
+            dir[i] = str_dir[i];
+        }
+        createDir(SD, dir);
+
+        String str_file_path = (String)year + (String)month + (String)date + file_extension;
+        int path_size = sizeof(str_file_path) / sizeof(str_file_path[0]);
+        char file_path[path_size];
+        for (int i = 0; i < path_size; i++)
+        {
+            file_path[i] = str_file_path[i];
+        }
+        appendFile(SD, file_path, sd_message);
+
+        if (!client.connected())
+        {
+            checkWiFiThenMQTT();
+        }
+        else
+        {
+            client.loop();
+            sendData(box_id, message);
+        }
+    }
 }
 
-void change_box_setting(String box_id_details, String dt, String st, String bt)
+void change_box_setting(String box_id, String box_address, String dt, String st, String bt)
 {
-    //TODO: Search in table for communicaiton id
-
+    update_oled("Change", "Setting", box_id);
     char address[COMMUNICATION_ID_LENGTH];
-
+    for (int i = 0; i < COMMUNICATION_ID_LENGTH; i++)
+    {
+        address[i] = box_address[i];
+    }
     String message = "chng," + dt + st + bt;
     write_radio(address, message);
     int success_code = 0;
@@ -733,14 +849,32 @@ void change_box_setting(String box_id_details, String dt, String st, String bt)
     if (recieved_message == "chng,ok")
     {
         success_code = 1;
+        update_oled("Setting", "Successful", box_id);
     }
-    send_Success_Data(box_id_details, "change", success_code, st, bt);
+    else
+    {
+        update_oled("Setting", "Failed", box_id);
+    }
+    if (!client.connected())
+    {
+        checkWiFiThenMQTT();
+    }
+    else
+    {
+        client.loop();
+        send_Success_Data(box_id, "change", success_code, st, bt);
+    }
 }
 
-void sound_buzzer()
+void sound_buzzer(String box_id)
 {
-    //TODO: Search in table for communicaiton id
+    update_oled("Buzz", "Box", box_id);
+    String box_address = fetch_box_address(box_id);
     char address[COMMUNICATION_ID_LENGTH];
+    for (int i = 0; i < COMMUNICATION_ID_LENGTH; i++)
+    {
+        address[i] = box_address[i];
+    }
     String message = "buzz";
     write_radio(address, message);
 }
@@ -748,6 +882,8 @@ void sound_buzzer()
 void aws_setup()
 {
     update_oled("AWS", "Setup", "In Progress");
+    Serial.println("Setting up AWS");
+    solid_rgb_ring(RED_COLOR);
     net.setCACert(cacert);
     net.setCertificate(client_cert);
     net.setPrivateKey(privkey);
@@ -755,11 +891,13 @@ void aws_setup()
     client.onMessage(messageReceived);
     connectToMqtt(false);
     update_oled("AWS", "Setup", "Complete");
+    solid_rgb_ring(GREEN_COLOR);
 }
 
 void messageReceived(String &topic, String &payload)
 {
     //Reference: https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonParserExample/JsonParserExample.ino
+    update_oled("Message", "Recieved", "from AWS");
     solid_rgb_ring(YELLOW_COLOR);
     Serial.println("Recieved [" + topic + "]: " + payload);
     StaticJsonDocument<50> doc;
@@ -780,24 +918,27 @@ void messageReceived(String &topic, String &payload)
     }
     else if (cmd == "calibrate") //Calibrate box parameters
     {
-        calibrate_box(box_id);
+        String address = fetch_box_address(box_id);
+        calibrate_box(box_id, address);
     }
     else if (cmd == "ask") //Ask box for updated values
     {
-        update_box_data(box_id);
+        rtc_get_time();
+        String address = fetch_box_address(box_id);
+        update_box_data(box_id, address);
     }
     else if (cmd == "change_setting") // Change box settings
     {
         String dt = doc["dt"];
         String st = doc["st"];
         String bt = doc["bt"];
-        change_box_setting(box_id, dt, st, bt);
+        String address = fetch_box_address(box_id);
+        change_box_setting(box_id, address, dt, st, bt);
     }
     else if (cmd == "buzz")
     {
-        sound_buzzer();
+        sound_buzzer(box_id);
     }
-
     solid_rgb_ring(GREEN_COLOR);
 }
 
@@ -925,6 +1066,7 @@ void checkWiFiThenReboot(void)
 void send_Success_Data(String box_id, String command, int success_status, String param1, String param2)
 {
     // Reference:https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonGeneratorExample/JsonGeneratorExample.ino
+    update_oled("AWS", "Upload", "InProgess");
     StaticJsonDocument<50> doc;
     doc["Box ID"] = box_id;
     doc["cmd"] = command;
@@ -954,30 +1096,21 @@ void send_Success_Data(String box_id, String command, int success_status, String
     }
 }
 
-void sendData(String message)
+void sendData(String box_id, String message)
 {
     // Reference:https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonGeneratorExample/JsonGeneratorExample.ino
     char token = ',';
     char params[UPDATE_PARAMETERS][10] = {{}, {}, {}, {}, {}};
-    char box_id[BOX_ID_LENGTH];
     int j = 0;
     for (int i = 0; i < (sizeof(message) / message[0]); i++)
     {
-        if (i < BOX_ID_LENGTH)
+        if (message[i] != token)
         {
-            box_id[i] = message[i];
+            params[j][i % 10] = message[i];
         }
-
         else
         {
-            if (message[i] != token)
-            {
-                params[j][i % 10] = message[i];
-            }
-            else
-            {
-                j++;
-            }
+            j++;
         }
     }
     String c = (String)params[0]; //Count
@@ -987,7 +1120,7 @@ void sendData(String message)
     String a = (String)params[4]; //Average Weight
 
     StaticJsonDocument<50> doc;
-    doc["time"] = latest_time.hour + '/' + latest_time.minutes + '/' + latest_time.seconds;
+    doc["time"] = (char)year + '/' + (char)month + '/' + (char)date + ' ' + (char)hour + ':' + (char)minutes + ':' + (char)seconds;
     doc["cmd"] = "ask";
     doc["c"] = c;
     doc["t"] = t;
@@ -1020,51 +1153,35 @@ void sendData(String message)
 void setup()
 {
     Serial.begin(115200);
-    pin_setup();
     rgb_ring_setup();
-    aws_setup();
     oled_setup();
-    wifi_ntp_setup();
-    rtc_setup();
     radio.begin();
+    EEPROM.begin(EEPROM_SIZE);
+    pin_setup();
+    wifi_ntp_setup();
+    // aws_setup();
     sd_setup();
+    read_box_details_from_sd_card();
+    // configure_timer();
+    // if (BOX_DETAILS[0][0] == NULL)
+    // {
+    //     update_oled("No", "Box", "Linked");
+    //     Serial.println("No Box Linked");
+    //     solid_rgb_ring(RED_COLOR);
+    //     while (BOX_DETAILS[0][0] == NULL)
+    //     {
+    //     }
+    // }
+    solid_rgb_ring(BLUE_COLOR);
+    print_company_logo();
 }
 
 void loop()
 {
-    printLocalTime();
-
-    //    read_rotary_encoder();
-    /*
-    if (radio_msg != "no")
+    if (digitalRead(outputS) == HIGH)
     {
-        now = time(nullptr);
-        if (!client.connected())
-        {
-            checkWiFiThenMQTT();
-            //checkWiFiThenMQTTNonBlocking();
-            //checkWiFiThenReboot();
-        }
-        else
-        {
-            OLED_print("AWS", "Write");
-            client.loop();
-            sendData(radio_msg);
-            delay(1000);
-            lastMillis = millis();
-            String data = get_time_format() + " : " + radio_msg + "\n";
-            Serial.println("SD Message: " + data);
-            appendFile(SD, "/data_file_1.txt", data);
-        }
+        solid_rgb_ring(BLUE_COLOR);
+        read_rotary_encoder();
+        print_company_logo();
     }
-    char timer[6];
-    int timer_delay = 1;
-    for (size_t i = 0; i < timer_delay; i++)
-    {
-        itoa(i, timer, 10);
-        OLED_print("delay", timer);
-        delay(1000);
-    }
-
-    */
 }

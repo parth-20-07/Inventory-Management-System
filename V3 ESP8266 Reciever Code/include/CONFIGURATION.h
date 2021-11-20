@@ -2,6 +2,9 @@
 #ifndef CONFIGURATION_H // In order to avoid double mentions and compiler errors
 #define CONFIGURATION_H
 
+//! Device Configuration
+#define BRIGHTNESS 100
+
 //! WiFi Login Details
 char WIFI_SSID[] = "abc";
 char WIFI_PASSWORD[] = "123@54321a";
@@ -110,5 +113,6 @@ Fb0K1iQeUsJy1lHSX35yxs5ghCiKPpS1NCGTI7lAIia1wyFFdbcUtQ==
 #define MAX_BOXES 100
 #define COMMUNICATION_ID_LENGTH 6
 #define UPDATE_PARAMETERS 5
+int connected_boxes = 0;
 
 #endif
