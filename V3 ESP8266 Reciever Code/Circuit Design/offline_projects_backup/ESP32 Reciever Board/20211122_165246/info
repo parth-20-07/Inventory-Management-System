@@ -4,7 +4,7 @@
   "name": "ESP32 Reciever Board",
   "content": "",
   "created_at": "2021-11-11 10:55:55",
-  "updated_at": "2021-11-22 17:53:10",
+  "updated_at": "2021-11-22 16:52:46",
   "stick": "",
   "documents": [
     {
@@ -1087,8 +1087,8 @@
     {
       "uuid": "9fb029d04ed1780c4f5b0208b5650312",
       "puuid": "861a7e41dc264fac87e7c6828b883898",
-      "title": "PCB V1 ESP32 Reciever Board",
-      "filename": "PCB V1 ESP32 Reciever Board.json",
+      "title": "PCB_ESP32 Reciever Board",
+      "filename": "PCB_ESP32 Reciever Board.json",
       "description": "",
       "docType": "3",
       "master": "",
@@ -1127,14 +1127,15 @@
     {
       "uuid": "92d354ed1c48fc114f2dd2ecac8f0dfc",
       "puuid": "861a7e41dc264fac87e7c6828b883898",
-      "title": "PCB V2 ESP32 Reciever Board",
-      "filename": "PCB V2 ESP32 Reciever Board.json",
+      "title": "PCB_ESP32 Reciever Board_2",
+      "filename": "PCB_ESP32 Reciever Board_2.json",
       "description": "",
       "docType": "3",
       "master": "",
       "thumb": "/images/thumb-default.png",
       "components": {
         "6a840af21f864901916df0f4266a425c": 1,
+        "a8cca5dd1f454a4faa0555e16c2dc957": 1,
         "9ab4ba27487f4e968ec8c676394520e2": 2,
         "f8151fdc728a41ebbc304e11d39e5437": 4,
         "2ee8eb13a0124a108e622ce40c0c25a8": 1,
@@ -1154,15 +1155,14 @@
         "02ae667aca734971be8a5f58143dd564": 1,
         "7568fee05bc44581b2c32625ae15b3f8": 1,
         "9515d4bd7b2a4839b133a608b12840a8": 1,
-        "b4cb6e6f44a64822b1a75e418bd409f5": 1,
-        "a8cca5dd1f454a4faa0555e16c2dc957": 1
+        "b4cb6e6f44a64822b1a75e418bd409f5": 1
       },
       "BOM": [],
-      "updateTime": 1637583760,
+      "updateTime": 1637580166,
       "createTime": 1637574891,
       "histories": [],
       "created_at": "2021-11-22 15:24:51",
-      "updated_at": "2021-11-22 17:52:40"
+      "updated_at": "2021-11-22 16:52:46"
     }
   ],
   "sort": [
