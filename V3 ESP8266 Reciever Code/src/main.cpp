@@ -99,6 +99,7 @@ char line1[RL_MAX_CHARS];
 #define outputA RE_DT
 #define outputB RE_CLK
 #define outputS RE_SW
+#define DEBOUNCE_TIME 50
 float counter = 0;
 int aState;
 int aLastState;
@@ -129,9 +130,12 @@ Prescalar possible:
 - 2^8 = 256 = 4 mins 16 secs We are choosing this option as this is closest to the required timer
 - 2^9 = 512 = 8 mins 32 secs
 */
-#define ESP32_CLOCK 80000000 // 80MHz Clock on ESP32
-#define PRESCALAR 256        // Prescalar creates a timer to set the alarm for 4 min 16 sec
+#define DELAY_IN_MINUTES 5          // Time between each counting
+#define TIMER DELAY_IN_MINUTES * 60 // Delay in Seconds
+#define ESP32_CLOCK 80000000        // 80MHz Clock on ESP32
+#define PRESCALAR 80                // Prescalar creates a timer to set the alarm for 4 min 16 sec
 hw_timer_t *timer = NULL;
+volatile int count; // Trigger
 
 //! Setting up EEPROM
 //Reference: https://randomnerdtutorials.com/esp32-flash-memory/
@@ -166,6 +170,7 @@ void rgb_ring_setup();
 void read_box_details_from_sd_card();
 void handleEachLine(char line[], int lineIndex);
 String fetch_box_address(String box_id);
+void regular_box_update(void);
 void add_new_box(String box_id);
 void calibrate_box(String box_id, String box_address);
 void update_box_data(String box_id, String box_address);
@@ -193,7 +198,6 @@ void configure_timer()
     timer = timerBegin(0, PRESCALAR, true);
     timerAttachInterrupt(timer, &onTime, true);
     timerAlarmWrite(timer, (ESP32_CLOCK / PRESCALAR), true);
-    timerAlarmEnable(timer);
     update_oled("Timer", "Setup", "Done");
     solid_rgb_ring(GREEN_COLOR);
     return;
@@ -201,17 +205,7 @@ void configure_timer()
 
 void IRAM_ATTR onTime()
 {
-    Serial.println("Entering Timer ISR");
-    rtc_get_time();
-    connected_boxes = EEPROM.read(CONNECTED_BOXES_STORED_LOCATION);
-    for (int i = 0; i < connected_boxes; i++)
-    {
-        halt_rgb_ring(i);
-        String box_id = BOX_DETAILS[i][0];
-        String address = BOX_DETAILS[i][1];
-        update_oled("Contacting", "Box", box_id);
-        update_box_data(box_id, address);
-    }
+    count++;
 }
 
 void print_company_logo()
@@ -220,6 +214,7 @@ void print_company_logo()
     display.clearDisplay();
     display.drawBitmap(0, 0, COMPANY_LOGO, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
     display.display();
+    solid_rgb_ring(BLUE_COLOR);
 }
 
 int printLocalTime()
@@ -576,6 +571,7 @@ void read_rotary_encoder()
         }
         if (digitalRead(outputS) == HIGH)
         {
+            delay(500);
             if ((int)counter == 0)
             {
                 main_list_pos = 0;
@@ -613,7 +609,6 @@ void solid_rgb_ring(uint32_t color)
         pixels.setPixelColor(i, color);
     }
     pixels.show();
-    delay(1000);
 }
 
 void halt_rgb_ring(int led_number)
@@ -678,6 +673,28 @@ String fetch_box_address(String box_id)
     }
     String address = BOX_DETAILS[i][1];
     return address;
+}
+
+void regular_box_update(void)
+{
+    timerStop(timer);
+    timerAlarmDisable(timer);
+    Serial.println("");
+    update_oled("Timer", "Activated", "");
+    solid_rgb_ring(pixels.Color(125, 125, 125));
+    delay(10000);
+    // rtc_get_time();
+    // connected_boxes = EEPROM.read(CONNECTED_BOXES_STORED_LOCATION);
+    // for (int i = 0; i < connected_boxes; i++)
+    // {
+    //     halt_rgb_ring(i);
+    //     String box_id = BOX_DETAILS[i][0];
+    //     String address = BOX_DETAILS[i][1];
+    //     update_oled("Contacting", "Box", box_id);
+    //     update_box_data(box_id, address);
+    // }
+    timerStart(timer);
+    timerAlarmEnable(timer);
 }
 
 void add_new_box(String box_id)
@@ -896,6 +913,8 @@ void aws_setup()
 
 void messageReceived(String &topic, String &payload)
 {
+    timerStop(timer);
+    timerAlarmDisable(timer);
     //Reference: https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonParserExample/JsonParserExample.ino
     update_oled("Message", "Recieved", "from AWS");
     solid_rgb_ring(YELLOW_COLOR);
@@ -940,6 +959,8 @@ void messageReceived(String &topic, String &payload)
         sound_buzzer(box_id);
     }
     solid_rgb_ring(GREEN_COLOR);
+    timerStart(timer);
+    timerAlarmEnable(timer);
 }
 
 void lwMQTTErr(lwmqtt_err_t reason)
@@ -1169,11 +1190,10 @@ void setup()
     radio.begin();
     EEPROM.begin(EEPROM_SIZE);
     pin_setup();
-    wifi_ntp_setup();
+    // wifi_ntp_setup();
     // aws_setup();
-    sd_setup();
-    read_box_details_from_sd_card();
-    // configure_timer();
+    // sd_setup();
+    // read_box_details_from_sd_card();
     // if (BOX_DETAILS[0][0] == NULL)
     // {
     //     update_oled("No", "Box", "Linked");
@@ -1183,16 +1203,33 @@ void setup()
     //     {
     //     }
     // }
-    solid_rgb_ring(BLUE_COLOR);
+    configure_timer();
+    timerAlarmEnable(timer);
     print_company_logo();
 }
 
 void loop()
 {
+
     if (digitalRead(outputS) == HIGH)
     {
-        solid_rgb_ring(BLUE_COLOR);
-        read_rotary_encoder();
+        timerStop(timer);
+        timerAlarmDisable(timer);
+        delay(DEBOUNCE_TIME);
+        if (digitalRead(outputS) == HIGH)
+        {
+            delay(500);
+            read_rotary_encoder();
+            print_company_logo();
+        }
+        delay(1000);
+        timerStart(timer);
+        timerAlarmEnable(timer);
+    }
+    if (count > TIMER)
+    {
+        count = 0;
+        regular_box_update();
         print_company_logo();
     }
 }
