@@ -14,6 +14,7 @@
 #include "PIN_CONNECTION.h"
 #include "USER_CONFIGURATION.h"
 #include "DEVICE_CONFIGURATION.h"
+#include "ERROR_LOG.h"
 
 //! WiFi and NTP Setup
 //Reference (NTP Setup): https://lastminuteengineers.com/esp32-ntp-server-date-time-tutorial/
@@ -25,6 +26,7 @@
 AsyncWebServer server(80);
 char ssid[10];
 char password[20];
+int wifi_connection_status = 0; // 0-> WiFi Disconnected, 1-> WiFi Connected
 const char *ntpServer = "asia.pool.ntp.org";
 const long gmtOffset_sec = 19800; // +5:30 = (5*60*60) + (30*60) = 19800
 const int daylightOffset_sec = 0; // India doesn't observe DayLight Saving
@@ -207,6 +209,7 @@ void handleEachLine(char line[], int lineIndex);
 void handleEachErrorLine(char line[], int lineIndex);
 void handleEachSSIDLine(char line[], int lineIndex);
 void handleEachPasswordLine(char line[], int lineIndex);
+void write_error_log(String error_log_tag);
 void messageReceived(String &topic, String &payload);
 void lwMQTTErr(lwmqtt_err_t reason);
 void lwMQTTErrConnection(lwmqtt_return_code_t reason);
@@ -267,7 +270,8 @@ void pin_setup(void)
  */
 void wifi_ntp_setup(void)
 {
-    //connect to WiFi
+    WiFi.disconnect(); // Disconnect to any connected wifi if any
+
     Serial.println("Setting up WiFi and NTP");
     solid_rgb_ring(YELLOW_COLOR);
 
@@ -279,24 +283,44 @@ void wifi_ntp_setup(void)
     if ((String)ssid == "")
         connect_to_new_wifi();
 
-    update_oled("Wifi", "Connecting", ssid);
+    update_oled("Wi-Fi", "Connecting", ssid);
+    WiFi.disconnect();
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
 
-    while (WiFi.status() != WL_CONNECTED)
+    wifi_connection_status = 0;
+    int connection_attempts = 0;
+    int max_attempts = 500;
+    while (connection_attempts < max_attempts)
     {
-        delay(50);
-        Serial.print(".");
+        if (WiFi.status() != WL_CONNECTED)
+        {
+            delay(10);
+            Serial.print(".");
+        }
+        else
+        {
+            wifi_connection_status = 1;
+            break;
+        }
     }
-    Serial.println("CONNECTED");
-
-    solid_rgb_ring(GREEN_COLOR);
-    update_oled("Wifi is", "Connected", ssid);
-
-    // Configure NTP
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     rtc_setup();
-    printLocalTime();
+
+    if (wifi_connection_status == 1)
+    {
+        solid_rgb_ring(GREEN_COLOR);
+        update_oled("Wifi", "Connected", ssid);
+        // Configure NTP
+        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+        printLocalTime(); //Fetching time from NTP
+    }
+    else
+    {
+        solid_rgb_ring(RED_COLOR);
+        update_oled("Wifi not", "Connected", ssid);
+        rtc_get_time();                      // Fetching time from RTC
+        write_error_log(WIFI_NOT_CONNECTED); // Error Log
+    }
     return;
 }
 
@@ -382,17 +406,22 @@ void rgb_ring_setup(void)
  */
 void aws_setup(void)
 {
-    solid_rgb_ring(YELLOW_COLOR);
-    update_oled("AWS", "Setup", "In Progress");
     Serial.println("Setting up AWS");
-    net.setCACert(cacert);
-    net.setCertificate(client_cert);
-    net.setPrivateKey(privkey);
-    client.begin(MQTT_HOST, MQTT_PORT, net);
-    client.onMessage(messageReceived);
-    connectToMqtt(false);
-    solid_rgb_ring(GREEN_COLOR);
-    update_oled("AWS", "Setup", "Complete");
+    if (wifi_connection_status == 0)
+        wifi_ntp_setup();
+    else
+    {
+        solid_rgb_ring(YELLOW_COLOR);
+        update_oled("AWS", "Setup", "In Progress");
+        net.setCACert(cacert);
+        net.setCertificate(client_cert);
+        net.setPrivateKey(privkey);
+        client.begin(MQTT_HOST, MQTT_PORT, net);
+        client.onMessage(messageReceived);
+        connectToMqtt(false);
+        solid_rgb_ring(GREEN_COLOR);
+        update_oled("AWS", "Setup", "Complete");
+    }
 }
 
 //TODO: OLED Functions
@@ -500,6 +529,7 @@ void printLocalTime(void)
         update_oled("NTP", "Update", "Failed");
         Serial.println("NTP Failed to Update");
         rtc_get_time();
+        write_error_log(NTP_NOT_UPDATED); // Error Log
         return;
     }
 
@@ -893,32 +923,31 @@ void read_rotary_encoder(void)
     String item2 = main_menu[main_list_pos + 1][menu_level][sub_list_pos];
     String item3 = main_menu[main_list_pos + 2][menu_level][sub_list_pos];
     oled_menu_update(item1, item2, item3);
-
+    aLastState = digitalRead(outputA);
     while (1)
     {
         item1 = "";
         item2 = "";
         item3 = "";
+
         aState = digitalRead(outputA); // Reads the "current" state of the outputA
-        if (aState != aLastState)      // If the previous and the current state of the outputA are different, that means a Pulse has occured
+        if (aState != aLastState)
         {
-            delay(DEBOUNCE_TIME / 3);
-            aState = digitalRead(outputA); // Reads the "current" state of the outputA
-            if (aState != aLastState)      // If the previous and the current state of the outputA are different, that means a Pulse has occured
-            {
+            // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
+            if (digitalRead(outputB) != aState)
+                counter += 0.5;
+            else
+                counter -= 0.5;
+            Serial.println("Position: " + (String)counter);
 
-                if (digitalRead(outputB) != aState) // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
-                    counter += 0.5;                 // increment of 0.5 is done to ensure that the the complete click of RE is measured as one turn
-                else
-                    counter -= 0.5; // decrement of 0.5 is done to ensure that the the complete click of RE is measured as one turn
-
-                if ((int)counter >= menu_length - 1)
-                    counter = menu_length - 1; // Ensures that the menu list does not go below the coded list to avoid menu display error
-                else if ((int)counter < 0)
-                    counter = 0; // Ensures that the menu list does not go above the coded list to avoid menu display error
-                Serial.println("Counter: " + (String)((int)counter));
-            }
+            if ((int)counter >= menu_length - 1)
+                counter = menu_length - 1; // Ensures that the menu list does not go below the coded list to avoid menu display error
+            else if ((int)counter < 0)
+                counter = 0; // Ensures that the menu list does not go above the coded list to avoid menu display error
+            Serial.println("Position: " + (String)(int)counter);
         }
+        aLastState = aState; // Updates the previous state of the outputA with the current state
+
         if (digitalRead(outputS) == HIGH)
         {
             delay(3 * DEBOUNCE_TIME);
@@ -991,13 +1020,10 @@ void read_rotary_encoder(void)
             {
                 sub_list_pos = (int)counter;
                 if (sub_list_pos == 0)
-                {
                     item1 = main_menu[main_list_pos][1][0];
-                }
                 else
-                {
                     item1 = BOX_DETAILS[sub_list_pos][0];
-                }
+
                 if ((int)counter < menu_length - 1)
                     item2 = BOX_DETAILS[sub_list_pos + 1][0];
                 if ((int)counter < menu_length - 2)
@@ -1195,38 +1221,41 @@ void update_box_data(String box_id, String box_address)
     String message = read_radio(address);
     if (message != "")
     { // Correct format: "<count>,<temperature>,<battery>,<offset>,<average_wesight>"
-        String str_sd_message = box_id + message;
-        int msg_size = sizeof(str_sd_message) / sizeof(str_sd_message[0]); // Calculating the message size
 
-        char sd_message[msg_size]; // Str to Char conversion
+        String str_sd_message = hour + '/' + minutes + '/' + seconds + box_id + message;
+        int msg_size = str_sd_message.length(); // Calculating the message size
+        char sd_message[msg_size];              // Str to Char conversion
         for (int i = 0; i < msg_size; i++)
             sd_message[i] = str_sd_message[i];
 
         // Creating Directory of Format YYYY/MM/
-        String str_dir = (String)year + '/' + (String)month + '/';
-        int dir_size = sizeof(str_dir) / sizeof(str_dir[0]);
-
+        String str_dir = '/' + (String)year + '/' + (String)month;
+        int dir_size = str_dir.length();
         char dir[dir_size]; // Str to Char conversion
         for (int i = 0; i < dir_size; i++)
             dir[i] = str_dir[i];
         createDir(SD, dir);
 
         // Creating File Path
-        String str_file_path = (String)year + '/' + (String)month + '/' + (String)date + file_extension;
-        int path_size = sizeof(str_file_path) / sizeof(str_file_path[0]);
-
+        String str_file_path = '/' + (String)year + '/' + (String)month + '/' + (String)date + file_extension;
+        int path_size = str_file_path.length();
         char file_path[path_size]; // Str to Char conversion
         for (int i = 0; i < path_size; i++)
             file_path[i] = str_file_path[i];
         appendFile(SD, file_path, sd_message);
 
-        if (!client.connected())
-            checkWiFiThenMQTT();
-        else
+        if (wifi_connection_status == 1)
         {
-            client.loop();
-            sendData(box_id, message);
+            if (!client.connected())
+                checkWiFiThenMQTT();
+            else
+            {
+                client.loop();
+                sendData(box_id, message);
+            }
         }
+        else
+            appendFile(SD, AWS_BACKLOG_FILE, sd_message);
     }
 }
 
@@ -1522,6 +1551,25 @@ void handleEachPasswordLine(char line[], int lineIndex)
     }
 }
 
+/**
+ * @brief Write Error Log to SD Card in ERROR_LOG_FILE
+ * Format: YYYY/MM/DD-HH:MM:SS-#<XXXX>
+ * <XXXX> - Error Code
+ * @param error_log_tag 
+ */
+void write_error_log(String error_log_tag)
+{
+    //Writing Error
+    String str_error_log = (String)year + '/' + (String)month + '/' + (String)date + '-' + (String)hour + ':' + (String)minutes + ':' + (String)seconds + error_log_tag;
+    latest_error_log = str_error_log;
+    char error_log[str_error_log.length()];
+
+    for (int i = 0; i < str_error_log.length(); i++)
+        error_log[i] = str_error_log[i];
+
+    writeFile(SD, ERROR_LOG_FILE, error_log);
+}
+
 //TODO: AWS Functions
 
 /**
@@ -1599,31 +1647,70 @@ void lwMQTTErr(lwmqtt_err_t reason)
     if (reason == lwmqtt_err_t::LWMQTT_SUCCESS)
         Serial.print("Success");
     else if (reason == lwmqtt_err_t::LWMQTT_BUFFER_TOO_SHORT)
+    {
+        write_error_log("#002");
         Serial.print("Buffer too short");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_VARNUM_OVERFLOW)
+    {
+        write_error_log("#003");
         Serial.print("Varnum overflow");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_NETWORK_FAILED_CONNECT)
+    {
+        write_error_log("#004");
         Serial.print("Network failed connect");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_NETWORK_TIMEOUT)
+    {
+        write_error_log("#005");
         Serial.print("Network timeout");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_NETWORK_FAILED_READ)
+    {
+        write_error_log("#006");
         Serial.print("Network failed read");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_NETWORK_FAILED_WRITE)
+    {
+        write_error_log("#007");
         Serial.print("Network failed write");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_REMAINING_LENGTH_OVERFLOW)
+    {
+        write_error_log("#008");
         Serial.print("Remaining length overflow");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_REMAINING_LENGTH_MISMATCH)
+    {
+        write_error_log("#009");
         Serial.print("Remaining length mismatch");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_MISSING_OR_WRONG_PACKET)
+    {
+        write_error_log("#010");
         Serial.print("Missing or wrong packet");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_CONNECTION_DENIED)
+    {
+        write_error_log("#011");
         Serial.print("Connection denied");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_FAILED_SUBSCRIPTION)
+    {
+        write_error_log("#012");
         Serial.print("Failed subscription");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_SUBACK_ARRAY_OVERFLOW)
+    {
+        write_error_log("#013");
         Serial.print("Suback array overflow");
+    }
     else if (reason == lwmqtt_err_t::LWMQTT_PONG_TIMEOUT)
+    {
+        write_error_log("#014");
         Serial.print("Pong timeout");
+    }
 }
 
 void lwMQTTErrConnection(lwmqtt_return_code_t reason)
@@ -1631,17 +1718,35 @@ void lwMQTTErrConnection(lwmqtt_return_code_t reason)
     if (reason == lwmqtt_return_code_t::LWMQTT_CONNECTION_ACCEPTED)
         Serial.print("Connection Accepted");
     else if (reason == lwmqtt_return_code_t::LWMQTT_UNACCEPTABLE_PROTOCOL)
+    {
+        write_error_log("#015");
         Serial.print("Unacceptable Protocol");
+    }
     else if (reason == lwmqtt_return_code_t::LWMQTT_IDENTIFIER_REJECTED)
+    {
+        write_error_log("#016");
         Serial.print("Identifier Rejected");
+    }
     else if (reason == lwmqtt_return_code_t::LWMQTT_SERVER_UNAVAILABLE)
+    {
+        write_error_log("#017");
         Serial.print("Server Unavailable");
+    }
     else if (reason == lwmqtt_return_code_t::LWMQTT_BAD_USERNAME_OR_PASSWORD)
+    {
+        write_error_log("#018");
         Serial.print("Bad UserName/Password");
+    }
     else if (reason == lwmqtt_return_code_t::LWMQTT_NOT_AUTHORIZED)
+    {
+        write_error_log("#019");
         Serial.print("Not Authorized");
+    }
     else if (reason == lwmqtt_return_code_t::LWMQTT_UNKNOWN_RETURN_CODE)
+    {
+        write_error_log("#020");
         Serial.print("Unknown Return Code");
+    }
 }
 
 void connectToMqtt(bool nonBlocking)
@@ -1884,8 +1989,9 @@ void loop()
         timerAlarmEnable(timer);
     }
 
-    if ((count % DELAY_ONE_MINUTES) == 0) // When Count variable overflows the Timer Value, the periodic box polling is done
+    if ((count != 0) && ((count % DELAY_ONE_MINUTES) == 0)) // When Count variable overflows the Timer Value, the periodic box polling is done
     {
+        solid_rgb_ring(YELLOW_COLOR);
         regular_box_update(count);
         if (count >= DELAY_SIXTY_MINUTES)
         {
