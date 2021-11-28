@@ -93,7 +93,8 @@ char alphabet[AVAILABLE_CHARACTERS] = {
     'q', 'r', 's', 't', 'u', 'v', 'w',
     'x', 'y', 'z', '1', '2', '3', '4',
     '5', '6', '7', '8', '9', '0'};
-char BROADCAST_RECIEVER_ADDRESS[5] = {'b', 'o', 'x', 'i', 't'};
+
+const char BROADCAST_RECIEVER_ADDRESS[5] = {' b ', ' o ', ' x ', ' i ', ' t '};
 String BOX_DETAILS[MAX_BOXES][3];
 
 //! SD Card Setup
@@ -200,8 +201,8 @@ void calibrate_box(String box_id, String box_address);
 void update_box_data(String box_id, String box_address);
 void change_box_setting(String box_id, String box_address, String dt, String st, String bt);
 void sound_buzzer(String box_id, String box_address);
-void write_radio(char transmission_address[], String transmission_message);
-String read_radio(char recieving_address[]);
+void write_radio(char *ptr_transmission_address, String transmission_message);
+String read_radio(char *ptr_recieving_address);
 void regular_box_update(int counter);
 String fetch_box_address(String box_id);
 void read_box_details_from_sd_card(void);
@@ -1069,10 +1070,10 @@ void add_new_box(String box_id, String dt)
 
     // Write the message in format "pair,<box_id>,<communication_address>"
     String message = "pair," + box_id + "," + (String)address;
-    write_radio(BROADCAST_RECIEVER_ADDRESS, message);
+    write_radio(&BROADCAST_RECIEVER_ADDRESS, message);
 
     // Wait for the Box to return a message
-    String recieved_message = read_radio(address);
+    String recieved_message = read_radio(&address);
     int connection_status = 0; // 0 -> Failure, 1 -> Success
 
     // Check if the recieved message is in format "pair,ok,<box_id>"
@@ -1145,10 +1146,10 @@ void calibrate_box(String box_id, String box_address)
 
     // Writing the NRF with message "cali,<box_id>"
     String message = "cali," + box_id;
-    write_radio(address, message);
+    write_radio(&address, message);
 
     // Check if the message recieved is in required format or not
-    String recieved_message = read_radio(address);
+    String recieved_message = read_radio(&address);
     int connection_status = 0; // 0 -> Failure, 1 -> Success
 
     // Check if the NRF connection was successful or not
@@ -1175,10 +1176,10 @@ void calibrate_box(String box_id, String box_address)
 
     if (connection_status == 1)
     {
-        delay(30 * 1000);                                // Wait for calibration to complete
-        write_radio(address, "calibration_data_update"); // Write to radio fpr updated values
-        String update_message = read_radio(address);     // Read the radio
-        if (update_message != "")                        // Check if the radio message is not empty
+        delay(30 * 1000);                                 // Wait for calibration to complete
+        write_radio(&address, "calibration_data_update"); // Write to radio fpr updated values
+        String update_message = read_radio(&address);     // Read the radio
+        if (update_message != "")                         // Check if the radio message is not empty
         {
             solid_rgb_ring(GREEN_COLOR);
             update_oled("Calibration", "Successful", box_id);
@@ -1215,10 +1216,10 @@ void update_box_data(String box_id, String box_address)
 
     // Write radio with the address recieved
     String write_message = "updt";
-    write_radio(address, write_message);
+    write_radio(&address, write_message);
 
     // Read the radio
-    String message = read_radio(address);
+    String message = read_radio(&address);
     if (message != "")
     { // Correct format: "<count>,<temperature>,<battery>,<offset>,<average_wesight>"
 
@@ -1279,9 +1280,9 @@ void change_box_setting(String box_id, String box_address, String dt, String st,
         address[i] = box_address[i];
 
     String message = "chng," + dt + st + bt;
-    write_radio(address, message);
+    write_radio(&address, message);
 
-    String recieved_message = read_radio(address);
+    String recieved_message = read_radio(&address);
     if (recieved_message == "chng,ok")
     {
         success_code = 1;
@@ -1320,7 +1321,7 @@ void sound_buzzer(String box_id, String box_address)
         address[i] = box_address[i];
 
     String message = "buzz";
-    write_radio(address, message);
+    write_radio(&address, message);
 
     solid_rgb_ring(GREEN_COLOR);
     update_oled("Buzz", "Box", "Successful");
@@ -1333,15 +1334,11 @@ void sound_buzzer(String box_id, String box_address)
  * @param transmission_address 5 byte Transmission Address
  * @param transmission_message 32 byte Transmission Message
  */
-void write_radio(char transmission_address[], String transmission_message)
+void write_radio(char *ptr_transmission_address, String transmission_message)
 {
     update_oled("Sending", "Message", "via NRF");
 
-    byte address[COMMUNICATION_ID_LENGTH];
-    for (int i = 0; i < COMMUNICATION_ID_LENGTH; i++)
-        address[i] = transmission_address[i];
-
-    radio.openWritingPipe(address);
+    radio.openWritingPipe(*transmission_address);
     radio.setPALevel(RF24_PA_MIN);
     radio.stopListening();
     delay(100);
@@ -1357,15 +1354,11 @@ void write_radio(char transmission_address[], String transmission_message)
  * @param recieving_address 5 byte Recieving Address
  * @return String Recieved Message
  */
-String read_radio(char recieving_address[])
+String read_radio(char *ptr_recieving_address)
 {
     update_oled("Recieving", "Message", "via NRF");
 
-    byte address[COMMUNICATION_ID_LENGTH];
-    for (size_t i = 0; i < COMMUNICATION_ID_LENGTH; i++)
-        address[i] = recieving_address[i];
-
-    radio.openReadingPipe(0, address);
+    radio.openReadingPipe(0, *recieving_address);
     radio.setPALevel(RF24_PA_MIN);
     radio.startListening();
     delay(100);

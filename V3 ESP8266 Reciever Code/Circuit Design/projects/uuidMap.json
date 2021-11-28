@@ -1,10 +1,11 @@
 {
-  "861a7e41dc264fac87e7c6828b883898": "ESP32 Reciever Board",
-  "fa65847d873aa9a8f635354e9c04a9fa": "ESP32 Reciever Board\\ESP32 Reciever Board.json?Peripheral Connection Sheet",
-  "2770ff56b27c1f6a0331374a8f0ca019": "ESP32 Reciever Board\\ESP32 Reciever Board.json?ESP32 Sheet",
-  "9fb029d04ed1780c4f5b0208b5650312": "ESP32 Reciever Board\\PCB V1 ESP32 Reciever Board.json",
-  "92d354ed1c48fc114f2dd2ecac8f0dfc": "ESP32 Reciever Board\\PCB V2 ESP32 Reciever Board.json",
-  "93c2da6dd20222fdb7e7640b3879c611": "Programming Board",
-  "91eedb8ebf3e1fb6c2e4e03257c18ddd": "Programming Board\\Programming Board.json?Programming Board",
-  "bc131b9c409ae9595d70aad259572191": "Programming Board\\PCB_Programming Board.json"
+  "12dfbc4ed41c75156aa107b3c88a679e": "V1",
+  "861a7e41dc264fac87e7c6828b883898": "V1\\V1 ESP32 Reciever Board",
+  "fa65847d873aa9a8f635354e9c04a9fa": "V1\\V1 ESP32 Reciever Board\\V1 ESP32 Reciever Board.json?V1.1 Peripheral Connection Sheet",
+  "2770ff56b27c1f6a0331374a8f0ca019": "V1\\V1 ESP32 Reciever Board\\V1 ESP32 Reciever Board.json?V1.1 ESP32 Sheet",
+  "9fb029d04ed1780c4f5b0208b5650312": "V1\\V1 ESP32 Reciever Board\\PCB V1.1 ESP32 Reciever Board.json",
+  "92d354ed1c48fc114f2dd2ecac8f0dfc": "V1\\V1 ESP32 Reciever Board\\PCB V1.2 ESP32 Reciever Board.json",
+  "93c2da6dd20222fdb7e7640b3879c611": "V1\\V1 Programming Board",
+  "91eedb8ebf3e1fb6c2e4e03257c18ddd": "V1\\V1 Programming Board\\V1 Programming Board.json?V1.1 Programming Board",
+  "bc131b9c409ae9595d70aad259572191": "V1\\V1 Programming Board\\V1.1 PCB Programming Board.json"
 }
