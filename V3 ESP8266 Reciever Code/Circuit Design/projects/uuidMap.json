@@ -7,5 +7,10 @@
   "92d354ed1c48fc114f2dd2ecac8f0dfc": "V1\\V1 ESP32 Reciever Board\\PCB V1.2 ESP32 Reciever Board.json",
   "93c2da6dd20222fdb7e7640b3879c611": "V1\\V1 Programming Board",
   "91eedb8ebf3e1fb6c2e4e03257c18ddd": "V1\\V1 Programming Board\\V1 Programming Board.json?V1.1 Programming Board",
-  "bc131b9c409ae9595d70aad259572191": "V1\\V1 Programming Board\\V1.1 PCB Programming Board.json"
+  "bc131b9c409ae9595d70aad259572191": "V1\\V1 Programming Board\\V1.1 PCB Programming Board.json",
+  "a808e2d8b9fedd51df76f2b8eb3e4958": "V2",
+  "5d2d32139457730f4b66bd7fc83b5968": "V2\\V2 ESP32 Reciever Board",
+  "371a609613f1fd0b47854d7891f10751": "V2\\V2 ESP32 Reciever Board\\V2 ESP32 Reciever Board.json?V2.1 Peripheral Connection Sheet",
+  "def570fe5c2ed051799747ba0e7c23f1": "V2\\V2 ESP32 Reciever Board\\V2 ESP32 Reciever Board.json?V2.1 ESP32 Sheet",
+  "c0fd3ba85d61156bc241fe8bd3f45685": "V2\\V2 ESP32 Reciever Board\\PCB_V2 ESP32 Reciever Board.json"
 }

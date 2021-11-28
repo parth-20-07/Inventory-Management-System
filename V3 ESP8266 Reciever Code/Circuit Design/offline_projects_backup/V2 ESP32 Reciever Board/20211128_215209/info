@@ -1,36 +1,35 @@
 {
-  "uuid": "861a7e41dc264fac87e7c6828b883898",
-  "path": "Offline/V1%20ESP32%20Reciever%20Board",
-  "name": "V1 ESP32 Reciever Board",
-  "content": "",
-  "created_at": "2021-11-11 10:55:55",
-  "updated_at": "2021-11-28 20:07:02",
+  "uuid": "5d2d32139457730f4b66bd7fc83b5968",
+  "path": "Offline/V2 ESP32 Reciever Board",
+  "name": "V2 ESP32 Reciever Board",
+  "content": "Board is designed so that the components on board is available mostly on  SunRom.com",
+  "created_at": "2021-11-28 19:46:03",
+  "updated_at": "2021-11-28 21:52:08",
   "stick": "",
   "documents": [
     {
-      "uuid": "fa65847d873aa9a8f635354e9c04a9fa",
-      "title": "V1.1 Peripheral Connection Sheet",
-      "description": "This sheet contains all the peripheral connecitons to ESP32-WROOM.",
+      "uuid": "371a609613f1fd0b47854d7891f10751",
+      "title": "V2.1 Peripheral Connection Sheet",
+      "description": "",
       "docType": "1",
-      "master": "",
+      "master": "fe03903a28cca7cdfddf666516fa1e5c",
       "thumb": "/images/thumb-default.png",
       "components": {
-        "faf9287ca9d94a47a074464567a46d6d": 1,
-        "bb009484ef804a24ac5d18c54b249586": 11,
-        "33840d78b60f4ae4934c62d822c83426": 1,
-        "a37a16c8630b43b4a036ac665a9b4b35": 1,
-        "d06fd183e0b742e191bf48a41812063c": 2,
-        "595f1b159cbb1fc2159315f85f2042a1": 1,
-        "d5530ea64b3345f7b2c64a88352154a7": 1,
-        "0f158f51a9734da891b06f6e0536a858": 1,
-        "588dac9f81df8f83843513972963b454": 1,
-        "75309460f2bb46e49f2b80aea2ba60f2": 1,
-        "f5fb5a24e9edc515352eb800d4f925df": 1,
-        "e40941e7f4194bb5ae7e9aafae0704c2": 1,
-        "7ee9ffd504c84286ad67ad73e30ad2ba": 1,
+        "fd11c9e744c44aeab6011e8bd4c3ea86": 3,
         "daa3cf3493c84fa3b0b6a6d427d23f0b": 1,
-        "a9d645b9f38145b4bd374648e5f7f0bb": 1,
-        "fd11c9e744c44aeab6011e8bd4c3ea86": 4
+        "e40941e7f4194bb5ae7e9aafae0704c2": 1,
+        "588dac9f81df8f83843513972963b454": 1,
+        "d5530ea64b3345f7b2c64a88352154a7": 1,
+        "595f1b159cbb1fc2159315f85f2042a1": 1,
+        "d06fd183e0b742e191bf48a41812063c": 2,
+        "a37a16c8630b43b4a036ac665a9b4b35": 1,
+        "33840d78b60f4ae4934c62d822c83426": 1,
+        "bb009484ef804a24ac5d18c54b249586": 7,
+        "315b597ff358483bbaed998abe40ce54": 1,
+        "f5fb5a24e9edc515352eb800d4f925df": 1,
+        "75309460f2bb46e49f2b80aea2ba60f2": 1,
+        "45926e16ab854468abddf59acfb57bb8": 1,
+        "d81705a321fa469db1c2d85d4d2cf548": 1
       },
       "BOM": [
         [
@@ -41,17 +40,15 @@
           "CustomPara"
         ],
         [
-          "BU2450SM",
+          "RTC-DS3231-AT24C32",
           1,
-          "BU2450SM-JJ-GTR",
-          "B1",
+          "RTC-DS3231-AT24C32",
+          "1",
           {
-            "BOM_Manufacturer": "",
-            "BOM_Manufacturer Part": "BU2450-JJ-GTR",
-            "BOM_Supplier": "batteryholders.com",
-            "BOM_Supplier Part": "BU2450SM-JJ-GTR",
-            "puuid": "6a840af21f864901916df0f4266a425c",
-            "uuid": "a9d645b9f38145b4bd374648e5f7f0bb"
+            "BOM_Manufacturer Part": "https://www.electronicscomp.com/ds3231-rtc-module-india?gclid=Cj0KCQiA7oyNBhDiARIsADtGRZZDGpqLDgmqQLV3gBgdrccFhdrlTPLKKc-cTX2XIsmWIarZX-In53QaAugzEALw_wcB",
+            "BOM_Supplier": "ElectronicsComp.com",
+            "puuid": "ba9a5d2369694450b27e5a0285b8a3ae",
+            "uuid": "d81705a321fa469db1c2d85d4d2cf548"
           }
         ],
         [
@@ -66,14 +63,14 @@
           }
         ],
         [
-          "100n",
+          "1u",
           1,
           "CAP-D5.0×F2.0",
           "C1",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/6959",
             "puuid": "9ab4ba27487f4e968ec8c676394520e2",
             "uuid": "d06fd183e0b742e191bf48a41812063c"
           }
@@ -85,21 +82,21 @@
           "C2",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/6960",
             "puuid": "9ab4ba27487f4e968ec8c676394520e2",
             "uuid": "d06fd183e0b742e191bf48a41812063c"
           }
         ],
         [
           "100n",
-          3,
+          2,
           "C0603",
-          "C3,C4,C6",
+          "C4,C6",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/5190",
             "puuid": "f8151fdc728a41ebbc304e11d39e5437",
             "uuid": "fd11c9e744c44aeab6011e8bd4c3ea86"
           }
@@ -111,36 +108,36 @@
           "C5",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/6799",
             "puuid": "f8151fdc728a41ebbc304e11d39e5437",
             "uuid": "fd11c9e744c44aeab6011e8bd4c3ea86"
           }
         ],
         [
-          "DIODE",
+          "1N4007B",
           1,
-          "DIODE-1N4001-KIT",
-          "D1",
+          "1N4007",
+          "D4",
           {
-            "BOM_Manufacturer Part": "",
-            "puuid": "2e518d0ebe8a40c386d84ae34a148980",
-            "uuid": "7ee9ffd504c84286ad67ad73e30ad2ba"
+            "BOM_Supplier": "SunRom",
+            "BOM_Supplier Part": "C432604",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/4137",
+            "puuid": "8fb895e48091452dbc960478d3ead4da",
+            "uuid": "45926e16ab854468abddf59acfb57bb8"
           }
         ],
         [
-          "533980371",
+          "4P SMD JST XH 2.5mm",
           1,
-          "CONN-SMD_3P-P1.25_53398-0371",
+          "CONN-SMD_4P-P2.54_XH2.54-4AB",
           "J1",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Supplier Part": "C293633",
-            "BOM_Manufacturer": "MOLEX",
-            "BOM_Manufacturer Part": "533980371",
-            "BOM_JLCPCB Part Class": "Extended Part",
-            "puuid": "2f7a4f1c2cb546eda700e2aceab80fc7",
-            "uuid": "faf9287ca9d94a47a074464567a46d6d"
+            "BOM_Supplier": "SunRom",
+            "BOM_Supplier Part": "",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/4p-smd-jst-xh-25mm-top-entry-header",
+            "puuid": "1a5a15d5571c41cfb5caafa10c36a57c",
+            "uuid": "315b597ff358483bbaed998abe40ce54"
           }
         ],
         [
@@ -149,39 +146,25 @@
           "DC-IN-TH_DC005-T20",
           "J2",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Manufacturer": "SOFNG",
-            "BOM_Manufacturer Part": "DC005-2.0MM",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/dc-socket-suitable-for-55x25mm-dc-pins",
             "BOM_Supplier Part": "C111567",
-            "BOM_JLCPCB Part Class": "Extended Part",
             "puuid": "63578324d39c402ba15339bb872baddb",
             "uuid": "daa3cf3493c84fa3b0b6a6d427d23f0b"
           }
         ],
         [
-          "25k",
-          2,
-          "R0603",
-          "R1,R7",
+          "MicroSD",
+          1,
+          "MICRO-SD9+4P-SMD-16.1X14.5X1.85MM",
+          "J4",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
-            "puuid": "398691f1f785460098bbe5ee6590333c",
-            "uuid": "bb009484ef804a24ac5d18c54b249586"
-          }
-        ],
-        [
-          "220R",
-          2,
-          "R0603",
-          "R2,R3",
-          {
-            "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
-            "puuid": "398691f1f785460098bbe5ee6590333c",
-            "uuid": "bb009484ef804a24ac5d18c54b249586"
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/micro-sd-memory-card-socket",
+            "BOM_Manufacturer": "",
+            "puuid": "d32790128766442cb8c26466a717010e",
+            "uuid": "d5530ea64b3345f7b2c64a88352154a7"
           }
         ],
         [
@@ -191,8 +174,8 @@
           "R4,R5,R6",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/5191",
             "puuid": "398691f1f785460098bbe5ee6590333c",
             "uuid": "bb009484ef804a24ac5d18c54b249586"
           }
@@ -204,21 +187,22 @@
           "R8,R10,R11",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/10k-1-0603",
+            "BOM_Manufacturer": "",
             "puuid": "398691f1f785460098bbe5ee6590333c",
             "uuid": "bb009484ef804a24ac5d18c54b249586"
           }
         ],
         [
-          "0.4R",
+          "1R",
           1,
           "R0603",
           "R9",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/4721",
             "puuid": "398691f1f785460098bbe5ee6590333c",
             "uuid": "bb009484ef804a24ac5d18c54b249586"
           }
@@ -229,22 +213,10 @@
           "OMRON_G5LE_SPDT_RELAY",
           "RL1",
           {
-            "BOM_Manufacturer Part": "",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/3871",
+            "BOM_Supplier": "SunRom",
             "puuid": "e7a277b2bca341efaeb086a2f6e64c37",
             "uuid": "e40941e7f4194bb5ae7e9aafae0704c2"
-          }
-        ],
-        [
-          "MicroSD",
-          1,
-          "MICRO-SD9+4P-SMD-16.1X14.5X1.85MM",
-          "SD1",
-          {
-            "BOM_Supplier Part": "320090008",
-            "BOM_Supplier": "SeeedStudio",
-            "BOM_Manufacturer Part": "?",
-            "puuid": "d32790128766442cb8c26466a717010e",
-            "uuid": "d5530ea64b3345f7b2c64a88352154a7"
           }
         ],
         [
@@ -253,28 +225,11 @@
           "SW-TH_PEC11R-4XXXF-SXXXX",
           "SW1",
           {
-            "BOM_Supplier": "LCSC",
+            "BOM_Supplier": "SunRom",
             "BOM_Supplier Part": "C143789",
-            "BOM_Manufacturer": "BOURNS",
-            "BOM_Manufacturer Part": "PEC11R-4015F-S0024",
-            "BOM_JLCPCB Part Class": "Extended Part",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/rotary-encoder-ec11-shaft-15mm",
             "puuid": "77fbb25425be4a41b080944c96357ff7",
             "uuid": "33840d78b60f4ae4934c62d822c83426"
-          }
-        ],
-        [
-          "DS3231M+",
-          1,
-          "SOIC-16_L10.3-W7.5-P1.27-LS10.3-BL",
-          "U1",
-          {
-            "BOM_Supplier": "LCSC",
-            "BOM_Supplier Part": "C1520508",
-            "BOM_Manufacturer": "MAXIM(美信)",
-            "BOM_Manufacturer Part": "DS3231M+",
-            "BOM_JLCPCB Part Class": "Extended Part",
-            "puuid": "c3a3a479239346a8bb3da07840bfe89e",
-            "uuid": "0f158f51a9734da891b06f6e0536a858"
           }
         ],
         [
@@ -283,10 +238,10 @@
           "128X64OLED",
           "U4",
           {
-            "BOM_Manufacturer": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/micro-sd-memory-card-socket",
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer": "",
             "puuid": "f527d1538b0d4a0f9f2354e7bee87b05",
             "uuid": "a37a16c8630b43b4a036ac665a9b4b35"
           }
@@ -297,11 +252,9 @@
           "SOT-223-3_L6.5-W3.4-P2.30-LS7.0-BR",
           "U5",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Manufacturer": "AMS",
-            "BOM_Manufacturer Part": "AMS1117-3.3",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/ams1117-33-sot223",
             "BOM_Supplier Part": "C6186",
-            "BOM_JLCPCB Part Class": "Basic Part",
             "puuid": "02ae667aca734971be8a5f58143dd564",
             "uuid": "588dac9f81df8f83843513972963b454"
           }
@@ -312,11 +265,9 @@
           "ESOP-8_L4.9-W3.9-P1.27-LS6.0-BL-EP",
           "U6",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Manufacturer": "TOPPOWER",
-            "BOM_Manufacturer Part": "TP4056",
+            "BOM_Supplier": "KTRON",
+            "BOM_Manufacturer Part": "https://www.ktron.in/product/tp4056-ic/?gclid=Cj0KCQiA7oyNBhDiARIsADtGRZbrtF5iJKhifIiFyfxWcdbU-2PAueiIuZenXzDVpNWEOBE8aj3HQQEaAi6dEALw_wcB",
             "BOM_Supplier Part": "C16581",
-            "BOM_JLCPCB Part Class": "Basic Part",
             "puuid": "7568fee05bc44581b2c32625ae15b3f8",
             "uuid": "f5fb5a24e9edc515352eb800d4f925df"
           }
@@ -327,11 +278,9 @@
           "WIRELM-SMD_NRF24L01",
           "U14",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Manufacturer": "Ai-Thinker",
-            "BOM_Manufacturer Part": "NRF24L01+功率加强版绑定2.4Gwireless module",
+            "BOM_Supplier": "ElectronicsComp.com",
+            "BOM_Manufacturer Part": "https://www.electronicscomp.com/nrf24l01-2.4ghz-pa-lna-sma-transceiver-wireless-module-india?gclid=Cj0KCQiA7oyNBhDiARIsADtGRZbTdk_GhkKTO39HvdPlvnHbXcBqkYYr9jpOOImAdFOeiwFmTbD1BXUaAqbrEALw_wcB",
             "BOM_Supplier Part": "C90751",
-            "BOM_JLCPCB Part Class": "Extended Part",
             "puuid": "b4cb6e6f44a64822b1a75e418bd409f5",
             "uuid": "595f1b159cbb1fc2159315f85f2042a1"
           }
@@ -412,19 +361,6 @@
           }
         ],
         [
-          "ESP32S 30pin DevBoard",
-          1,
-          "ESP32S 30PIN DEVBOARD",
-          "U2",
-          {
-            "BOM_Manufacturer Part": "ESP32 Development Board",
-            "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "puuid": "7dee1a5f32e94f35b195af8fb4d6bf55",
-            "uuid": "ac1e07886ae34e16aadb1c198ff542ad"
-          }
-        ],
-        [
           "ESP32",
           1,
           "WIRELM-SMD_ESP32-S",
@@ -454,28 +390,27 @@
           }
         ]
       ],
-      "updateTime": 1638108465,
-      "createTime": 1636610824,
+      "updateTime": 1638116272,
+      "createTime": 1638109673,
       "histories": [],
-      "created_at": "2021-11-11 11:37:04",
-      "updated_at": "2021-11-28 19:37:45"
+      "created_at": "2021-11-28 19:57:53",
+      "updated_at": "2021-11-28 21:47:52"
     },
     {
-      "uuid": "2770ff56b27c1f6a0331374a8f0ca019",
-      "title": "V1.1 ESP32 Sheet",
-      "description": "This sheet contains the microcontroller connection to the peripherals",
+      "uuid": "def570fe5c2ed051799747ba0e7c23f1",
+      "title": "V2.1 ESP32 Sheet",
+      "description": "",
       "docType": "1",
-      "master": "",
+      "master": "ff9fab0160391a6a2de166c37f53ccca",
       "thumb": "/images/thumb-default.png",
       "components": {
-        "ac1e07886ae34e16aadb1c198ff542ad": 1,
-        "ade97575dadf9af3592537a08919f870": 2,
-        "797a6a13e07b4b3fa00d42f5a49ecb13": 1,
+        "78691a99ad1f438e87ff683c71202db3": 1,
+        "bb009484ef804a24ac5d18c54b249586": 2,
+        "089f853e15684e2f92ea6c2d29604ec9": 1,
         "14305fcff6fe44d7aa3af50b8ddc6b6d": 2,
         "5fe245ff6b9e475096776d0b6c0998a1": 1,
-        "089f853e15684e2f92ea6c2d29604ec9": 1,
-        "bb009484ef804a24ac5d18c54b249586": 2,
-        "78691a99ad1f438e87ff683c71202db3": 1
+        "797a6a13e07b4b3fa00d42f5a49ecb13": 1,
+        "ade97575dadf9af3592537a08919f870": 2
       },
       "BOM": [
         [
@@ -486,17 +421,15 @@
           "CustomPara"
         ],
         [
-          "BU2450SM",
+          "RTC-DS3231-AT24C32",
           1,
-          "BU2450SM-JJ-GTR",
-          "B1",
+          "RTC-DS3231-AT24C32",
+          "1",
           {
-            "BOM_Manufacturer": "",
-            "BOM_Manufacturer Part": "BU2450-JJ-GTR",
-            "BOM_Supplier": "batteryholders.com",
-            "BOM_Supplier Part": "BU2450SM-JJ-GTR",
-            "puuid": "6a840af21f864901916df0f4266a425c",
-            "uuid": "a9d645b9f38145b4bd374648e5f7f0bb"
+            "BOM_Manufacturer Part": "https://www.electronicscomp.com/ds3231-rtc-module-india?gclid=Cj0KCQiA7oyNBhDiARIsADtGRZZDGpqLDgmqQLV3gBgdrccFhdrlTPLKKc-cTX2XIsmWIarZX-In53QaAugzEALw_wcB",
+            "BOM_Supplier": "ElectronicsComp.com",
+            "puuid": "ba9a5d2369694450b27e5a0285b8a3ae",
+            "uuid": "d81705a321fa469db1c2d85d4d2cf548"
           }
         ],
         [
@@ -511,14 +444,14 @@
           }
         ],
         [
-          "100n",
+          "1u",
           1,
           "CAP-D5.0×F2.0",
           "C1",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/6959",
             "puuid": "9ab4ba27487f4e968ec8c676394520e2",
             "uuid": "d06fd183e0b742e191bf48a41812063c"
           }
@@ -530,21 +463,21 @@
           "C2",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/6960",
             "puuid": "9ab4ba27487f4e968ec8c676394520e2",
             "uuid": "d06fd183e0b742e191bf48a41812063c"
           }
         ],
         [
           "100n",
-          3,
+          2,
           "C0603",
-          "C3,C4,C6",
+          "C4,C6",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/5190",
             "puuid": "f8151fdc728a41ebbc304e11d39e5437",
             "uuid": "fd11c9e744c44aeab6011e8bd4c3ea86"
           }
@@ -556,36 +489,36 @@
           "C5",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/6799",
             "puuid": "f8151fdc728a41ebbc304e11d39e5437",
             "uuid": "fd11c9e744c44aeab6011e8bd4c3ea86"
           }
         ],
         [
-          "DIODE",
+          "1N4007B",
           1,
-          "DIODE-1N4001-KIT",
-          "D1",
+          "1N4007",
+          "D4",
           {
-            "BOM_Manufacturer Part": "",
-            "puuid": "2e518d0ebe8a40c386d84ae34a148980",
-            "uuid": "7ee9ffd504c84286ad67ad73e30ad2ba"
+            "BOM_Supplier": "SunRom",
+            "BOM_Supplier Part": "C432604",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/4137",
+            "puuid": "8fb895e48091452dbc960478d3ead4da",
+            "uuid": "45926e16ab854468abddf59acfb57bb8"
           }
         ],
         [
-          "533980371",
+          "4P SMD JST XH 2.5mm",
           1,
-          "CONN-SMD_3P-P1.25_53398-0371",
+          "CONN-SMD_4P-P2.54_XH2.54-4AB",
           "J1",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Supplier Part": "C293633",
-            "BOM_Manufacturer": "MOLEX",
-            "BOM_Manufacturer Part": "533980371",
-            "BOM_JLCPCB Part Class": "Extended Part",
-            "puuid": "2f7a4f1c2cb546eda700e2aceab80fc7",
-            "uuid": "faf9287ca9d94a47a074464567a46d6d"
+            "BOM_Supplier": "SunRom",
+            "BOM_Supplier Part": "",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/4p-smd-jst-xh-25mm-top-entry-header",
+            "puuid": "1a5a15d5571c41cfb5caafa10c36a57c",
+            "uuid": "315b597ff358483bbaed998abe40ce54"
           }
         ],
         [
@@ -594,39 +527,25 @@
           "DC-IN-TH_DC005-T20",
           "J2",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Manufacturer": "SOFNG",
-            "BOM_Manufacturer Part": "DC005-2.0MM",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/dc-socket-suitable-for-55x25mm-dc-pins",
             "BOM_Supplier Part": "C111567",
-            "BOM_JLCPCB Part Class": "Extended Part",
             "puuid": "63578324d39c402ba15339bb872baddb",
             "uuid": "daa3cf3493c84fa3b0b6a6d427d23f0b"
           }
         ],
         [
-          "25k",
-          2,
-          "R0603",
-          "R1,R7",
+          "MicroSD",
+          1,
+          "MICRO-SD9+4P-SMD-16.1X14.5X1.85MM",
+          "J4",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
-            "puuid": "398691f1f785460098bbe5ee6590333c",
-            "uuid": "bb009484ef804a24ac5d18c54b249586"
-          }
-        ],
-        [
-          "220R",
-          2,
-          "R0603",
-          "R2,R3",
-          {
-            "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
-            "puuid": "398691f1f785460098bbe5ee6590333c",
-            "uuid": "bb009484ef804a24ac5d18c54b249586"
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/micro-sd-memory-card-socket",
+            "BOM_Manufacturer": "",
+            "puuid": "d32790128766442cb8c26466a717010e",
+            "uuid": "d5530ea64b3345f7b2c64a88352154a7"
           }
         ],
         [
@@ -636,8 +555,8 @@
           "R4,R5,R6",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/5191",
             "puuid": "398691f1f785460098bbe5ee6590333c",
             "uuid": "bb009484ef804a24ac5d18c54b249586"
           }
@@ -649,21 +568,22 @@
           "R8,R10,R11",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/10k-1-0603",
+            "BOM_Manufacturer": "",
             "puuid": "398691f1f785460098bbe5ee6590333c",
             "uuid": "bb009484ef804a24ac5d18c54b249586"
           }
         ],
         [
-          "0.4R",
+          "1R",
           1,
           "R0603",
           "R9",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/4721",
             "puuid": "398691f1f785460098bbe5ee6590333c",
             "uuid": "bb009484ef804a24ac5d18c54b249586"
           }
@@ -674,22 +594,10 @@
           "OMRON_G5LE_SPDT_RELAY",
           "RL1",
           {
-            "BOM_Manufacturer Part": "",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/3871",
+            "BOM_Supplier": "SunRom",
             "puuid": "e7a277b2bca341efaeb086a2f6e64c37",
             "uuid": "e40941e7f4194bb5ae7e9aafae0704c2"
-          }
-        ],
-        [
-          "MicroSD",
-          1,
-          "MICRO-SD9+4P-SMD-16.1X14.5X1.85MM",
-          "SD1",
-          {
-            "BOM_Supplier Part": "320090008",
-            "BOM_Supplier": "SeeedStudio",
-            "BOM_Manufacturer Part": "?",
-            "puuid": "d32790128766442cb8c26466a717010e",
-            "uuid": "d5530ea64b3345f7b2c64a88352154a7"
           }
         ],
         [
@@ -698,28 +606,11 @@
           "SW-TH_PEC11R-4XXXF-SXXXX",
           "SW1",
           {
-            "BOM_Supplier": "LCSC",
+            "BOM_Supplier": "SunRom",
             "BOM_Supplier Part": "C143789",
-            "BOM_Manufacturer": "BOURNS",
-            "BOM_Manufacturer Part": "PEC11R-4015F-S0024",
-            "BOM_JLCPCB Part Class": "Extended Part",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/rotary-encoder-ec11-shaft-15mm",
             "puuid": "77fbb25425be4a41b080944c96357ff7",
             "uuid": "33840d78b60f4ae4934c62d822c83426"
-          }
-        ],
-        [
-          "DS3231M+",
-          1,
-          "SOIC-16_L10.3-W7.5-P1.27-LS10.3-BL",
-          "U1",
-          {
-            "BOM_Supplier": "LCSC",
-            "BOM_Supplier Part": "C1520508",
-            "BOM_Manufacturer": "MAXIM(美信)",
-            "BOM_Manufacturer Part": "DS3231M+",
-            "BOM_JLCPCB Part Class": "Extended Part",
-            "puuid": "c3a3a479239346a8bb3da07840bfe89e",
-            "uuid": "0f158f51a9734da891b06f6e0536a858"
           }
         ],
         [
@@ -728,10 +619,10 @@
           "128X64OLED",
           "U4",
           {
-            "BOM_Manufacturer": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/micro-sd-memory-card-socket",
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer": "",
             "puuid": "f527d1538b0d4a0f9f2354e7bee87b05",
             "uuid": "a37a16c8630b43b4a036ac665a9b4b35"
           }
@@ -742,11 +633,9 @@
           "SOT-223-3_L6.5-W3.4-P2.30-LS7.0-BR",
           "U5",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Manufacturer": "AMS",
-            "BOM_Manufacturer Part": "AMS1117-3.3",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/ams1117-33-sot223",
             "BOM_Supplier Part": "C6186",
-            "BOM_JLCPCB Part Class": "Basic Part",
             "puuid": "02ae667aca734971be8a5f58143dd564",
             "uuid": "588dac9f81df8f83843513972963b454"
           }
@@ -757,11 +646,9 @@
           "ESOP-8_L4.9-W3.9-P1.27-LS6.0-BL-EP",
           "U6",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Manufacturer": "TOPPOWER",
-            "BOM_Manufacturer Part": "TP4056",
+            "BOM_Supplier": "KTRON",
+            "BOM_Manufacturer Part": "https://www.ktron.in/product/tp4056-ic/?gclid=Cj0KCQiA7oyNBhDiARIsADtGRZbrtF5iJKhifIiFyfxWcdbU-2PAueiIuZenXzDVpNWEOBE8aj3HQQEaAi6dEALw_wcB",
             "BOM_Supplier Part": "C16581",
-            "BOM_JLCPCB Part Class": "Basic Part",
             "puuid": "7568fee05bc44581b2c32625ae15b3f8",
             "uuid": "f5fb5a24e9edc515352eb800d4f925df"
           }
@@ -772,11 +659,9 @@
           "WIRELM-SMD_NRF24L01",
           "U14",
           {
-            "BOM_Supplier": "LCSC",
-            "BOM_Manufacturer": "Ai-Thinker",
-            "BOM_Manufacturer Part": "NRF24L01+功率加强版绑定2.4Gwireless module",
+            "BOM_Supplier": "ElectronicsComp.com",
+            "BOM_Manufacturer Part": "https://www.electronicscomp.com/nrf24l01-2.4ghz-pa-lna-sma-transceiver-wireless-module-india?gclid=Cj0KCQiA7oyNBhDiARIsADtGRZbTdk_GhkKTO39HvdPlvnHbXcBqkYYr9jpOOImAdFOeiwFmTbD1BXUaAqbrEALw_wcB",
             "BOM_Supplier Part": "C90751",
-            "BOM_JLCPCB Part Class": "Extended Part",
             "puuid": "b4cb6e6f44a64822b1a75e418bd409f5",
             "uuid": "595f1b159cbb1fc2159315f85f2042a1"
           }
@@ -794,15 +679,28 @@
         ],
         [
           "17-21/BHC-XL2M2TY/3T",
-          2,
+          1,
           "LED0805-RD",
-          "D2,D3",
+          "D2",
           {
             "BOM_Supplier": "LCSC",
             "BOM_Manufacturer": "EVERLIGHT",
             "BOM_Manufacturer Part": "17-21/BHC-XL2M2TY/3T",
             "BOM_Supplier Part": "C72035",
             "BOM_LCSC Assembly": "Yes",
+            "puuid": "a267edbe7c3c4a16b85fd51e936458d0",
+            "uuid": "ade97575dadf9af3592537a08919f870"
+          }
+        ],
+        [
+          "17-21/BHC-XL2M2TY/3T",
+          1,
+          "LED0805-RD",
+          "D3",
+          {
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/m/4171",
+            "BOM_Supplier Part": "C72035",
             "puuid": "a267edbe7c3c4a16b85fd51e936458d0",
             "uuid": "ade97575dadf9af3592537a08919f870"
           }
@@ -828,8 +726,8 @@
           "R12,R13",
           {
             "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "BOM_Manufacturer Part": "",
+            "BOM_Supplier": "SunRom",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/220r-1-0603",
             "puuid": "398691f1f785460098bbe5ee6590333c",
             "uuid": "bb009484ef804a24ac5d18c54b249586"
           }
@@ -857,29 +755,14 @@
           }
         ],
         [
-          "ESP32S 30pin DevBoard",
-          1,
-          "ESP32S 30PIN DEVBOARD",
-          "U2",
-          {
-            "BOM_Manufacturer Part": "ESP32 Development Board",
-            "BOM_Supplier Part": "",
-            "BOM_Supplier": "",
-            "puuid": "7dee1a5f32e94f35b195af8fb4d6bf55",
-            "uuid": "ac1e07886ae34e16aadb1c198ff542ad"
-          }
-        ],
-        [
           "ESP32",
           1,
           "WIRELM-SMD_ESP32-S",
           "U3",
           {
-            "BOM_Supplier": "LCSC",
+            "BOM_Supplier": "SunRom",
             "BOM_Supplier Part": "C277944",
-            "BOM_Manufacturer": "Ai-Thinker",
-            "BOM_Manufacturer Part": "ESP32-S",
-            "BOM_LCSC Assembly": "Yes",
+            "BOM_Manufacturer Part": "https://www.sunrom.com/p/esp32-esp-wroom-32-wifibluetooth-module",
             "puuid": "35c7d6b10af34f27be24ebc957e217b4",
             "uuid": "797a6a13e07b4b3fa00d42f5a49ecb13"
           }
@@ -899,99 +782,58 @@
           }
         ]
       ],
-      "updateTime": 1638110222,
-      "createTime": 1636709831,
+      "updateTime": 1638116528,
+      "createTime": 1638110379,
       "histories": [],
-      "created_at": "2021-11-12 15:07:11",
-      "updated_at": "2021-11-28 20:07:02"
+      "created_at": "2021-11-28 20:09:39",
+      "updated_at": "2021-11-28 21:52:08"
     },
     {
-      "uuid": "9fb029d04ed1780c4f5b0208b5650312",
-      "puuid": "861a7e41dc264fac87e7c6828b883898",
-      "title": "PCB V1.1 ESP32 Reciever Board",
-      "filename": "PCB V1.1 ESP32 Reciever Board.json",
+      "uuid": "c0fd3ba85d61156bc241fe8bd3f45685",
+      "puuid": "5d2d32139457730f4b66bd7fc83b5968",
+      "title": "PCB_V2 ESP32 Reciever Board",
+      "filename": "PCB_V2 ESP32 Reciever Board.json",
       "description": "",
       "docType": "3",
       "master": "",
       "thumb": "/images/thumb-default.png",
       "components": {
         "6a840af21f864901916df0f4266a425c": 1,
-        "d32790128766442cb8c26466a717010e": 1,
-        "f8151fdc728a41ebbc304e11d39e5437": 4,
         "a8cca5dd1f454a4faa0555e16c2dc957": 1,
-        "2e518d0ebe8a40c386d84ae34a148980": 1,
-        "48a108a25c094a00b0b9434c6105ed15": 1,
-        "a267edbe7c3c4a16b85fd51e936458d0": 2,
-        "398691f1f785460098bbe5ee6590333c": 13,
         "9ab4ba27487f4e968ec8c676394520e2": 2,
-        "2f7a4f1c2cb546eda700e2aceab80fc7": 1,
+        "f8151fdc728a41ebbc304e11d39e5437": 4,
+        "2ee8eb13a0124a108e622ce40c0c25a8": 1,
+        "2e518d0ebe8a40c386d84ae34a148980": 1,
+        "a267edbe7c3c4a16b85fd51e936458d0": 2,
+        "63578324d39c402ba15339bb872baddb": 1,
+        "48a108a25c094a00b0b9434c6105ed15": 1,
+        "398691f1f785460098bbe5ee6590333c": 13,
         "156643598b734e60866538651ba9a456": 2,
         "e7a277b2bca341efaeb086a2f6e64c37": 1,
+        "d32790128766442cb8c26466a717010e": 1,
         "77fbb25425be4a41b080944c96357ff7": 1,
         "c3a3a479239346a8bb3da07840bfe89e": 1,
         "35c7d6b10af34f27be24ebc957e217b4": 1,
         "f527d1538b0d4a0f9f2354e7bee87b05": 1,
         "02ae667aca734971be8a5f58143dd564": 1,
         "7568fee05bc44581b2c32625ae15b3f8": 1,
-        "2ee8eb13a0124a108e622ce40c0c25a8": 1,
-        "63578324d39c402ba15339bb872baddb": 1,
         "9515d4bd7b2a4839b133a608b12840a8": 1,
         "b4cb6e6f44a64822b1a75e418bd409f5": 1
       },
       "BOM": [],
-      "updateTime": 1636971974,
-      "createTime": 1636721630,
+      "updateTime": 1638110759,
+      "createTime": 1638110759,
       "histories": [],
-      "created_at": "2021-11-12 18:23:50",
-      "updated_at": "2021-11-15 15:56:14"
-    },
-    {
-      "uuid": "92d354ed1c48fc114f2dd2ecac8f0dfc",
-      "puuid": "861a7e41dc264fac87e7c6828b883898",
-      "title": "PCB V1.2 ESP32 Reciever Board",
-      "filename": "PCB V1.2 ESP32 Reciever Board.json",
-      "description": "",
-      "docType": "3",
-      "master": "",
-      "thumb": "/images/thumb-default.png",
-      "components": {
-        "a8cca5dd1f454a4faa0555e16c2dc957": 1,
-        "f8151fdc728a41ebbc304e11d39e5437": 4,
-        "398691f1f785460098bbe5ee6590333c": 13,
-        "d32790128766442cb8c26466a717010e": 1,
-        "c3a3a479239346a8bb3da07840bfe89e": 1,
-        "b4cb6e6f44a64822b1a75e418bd409f5": 1,
-        "6a840af21f864901916df0f4266a425c": 1,
-        "9ab4ba27487f4e968ec8c676394520e2": 2,
-        "2ee8eb13a0124a108e622ce40c0c25a8": 1,
-        "2e518d0ebe8a40c386d84ae34a148980": 1,
-        "a267edbe7c3c4a16b85fd51e936458d0": 2,
-        "2f7a4f1c2cb546eda700e2aceab80fc7": 1,
-        "63578324d39c402ba15339bb872baddb": 1,
-        "48a108a25c094a00b0b9434c6105ed15": 1,
-        "156643598b734e60866538651ba9a456": 2,
-        "e7a277b2bca341efaeb086a2f6e64c37": 1,
-        "77fbb25425be4a41b080944c96357ff7": 1,
-        "35c7d6b10af34f27be24ebc957e217b4": 1,
-        "f527d1538b0d4a0f9f2354e7bee87b05": 1,
-        "02ae667aca734971be8a5f58143dd564": 1,
-        "7568fee05bc44581b2c32625ae15b3f8": 1,
-        "9515d4bd7b2a4839b133a608b12840a8": 1
-      },
-      "BOM": [],
-      "updateTime": 1637597033,
-      "createTime": 1637574891,
-      "histories": [],
-      "created_at": "2021-11-22 15:24:51",
-      "updated_at": "2021-11-22 21:33:53"
+      "created_at": "2021-11-28 20:15:59",
+      "updated_at": "2021-11-28 20:15:59"
     }
   ],
   "sort": [
-    "fa65847d873aa9a8f635354e9c04a9fa",
-    "2770ff56b27c1f6a0331374a8f0ca019"
+    "371a609613f1fd0b47854d7891f10751",
+    "def570fe5c2ed051799747ba0e7c23f1"
   ],
-  "title": "V1 ESP32 Reciever Board",
-  "foldername": "V1 ESP32 Reciever Board",
-  "schfilename": "V1 ESP32 Reciever Board.json",
-  "schfilemtime": 1638110222572
+  "title": "V2 ESP32 Reciever Board",
+  "foldername": "V2 ESP32 Reciever Board",
+  "schfilename": "V2 ESP32 Reciever Board.json",
+  "schfilemtime": 1638116529043
 }

@@ -465,7 +465,7 @@
       "title": "V1.1 ESP32 Sheet",
       "description": "This sheet contains the microcontroller connection to the peripherals",
       "docType": "1",
-      "master": "",
+      "master": "49cf7a696fc4c54f73ff0a352ab06cee",
       "thumb": "/images/thumb-default.png",
       "components": {
         "ac1e07886ae34e16aadb1c198ff542ad": 1,
