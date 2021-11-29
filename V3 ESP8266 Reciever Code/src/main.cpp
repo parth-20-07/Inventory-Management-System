@@ -16,9 +16,14 @@
 
 //! WiFi and NTP Setup
 //Reference (NTP Setup): https://lastminuteengineers.com/esp32-ntp-server-date-time-tutorial/
+//Reference (ESP32 Hotspot): https://lastminuteengineers.com/creating-esp32-web-server-arduino-ide/
+//Reference (ESP32 Server): https://randomnerdtutorials.com/esp32-esp8266-input-data-html-form/
 #include <WiFi.h>
 #include "time.h"
-char ssid[10];
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+AsyncWebServer server(80);
+char ssid[20];
 char password[20];
 int wifi_connection_status = 0; // 0-> WiFi Disconnected, 1-> WiFi Connected
 const char *ntpServer = "asia.pool.ntp.org";
@@ -30,6 +35,25 @@ uint8_t date;
 uint8_t hour;
 uint8_t minutes;
 uint8_t seconds;
+
+const char *PARAM_INPUT_1 = "ssid";
+const char *PARAM_INPUT_2 = "pwd";
+
+// HTML web page to handle 3 input fields (input1, input2, input3)
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML><html><head>
+  <title>ESP Wi-Fi Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body>
+  <form action="/get">
+    SSID: <input type="text" name="ssid">
+    <input type="submit" value="Submit">
+  </form><br>
+  <form action="/get">
+    Password: <input type="text" name="pwd">
+    <input type="submit" value="Submit">
+  </form><br>
+</body></html>)rawliteral";
 
 //! RTC DS3231 Setup
 //Reference (RTC DS3231): https://how2electronics.com/esp32-ds3231-based-real-time-clock/
@@ -58,15 +82,17 @@ String latest_error_log = "";
 #define CHARACTER_LENGTH 9 // Maximum Character Length allowed in a line on OLED
 
 // Code for Menu List
-#define MAIN_MENU_LIST 6
+#define MAIN_MENU_LIST 7
 #define SUB_MENU_LEVEL 2
 #define SUB_MENU_LIST 5
+#define OLED_TEXT_SIZE 2
 #define OLED_MENU_TEXT_SIZE 2
 String main_menu[MAIN_MENU_LIST][SUB_MENU_LEVEL][SUB_MENU_LIST] = {
     {{"< Back"}, {}},
     {{"Connected\n Boxes"}, {"< Back"}},
     {{"Connect\n New WiFi"}, {"< Back"}},
     {{"Reciever\n Details"}, {"< Back"}},
+    {{"Ring\n Bright."}, {"<Back"}},
     {{"Error Log"}, {"< Back"}},
     {{"Contact\n Us"}, {"< Back"}},
 };
@@ -163,8 +189,9 @@ volatile int count;
  * Reference (EEPROM): https://randomnerdtutorials.com/esp32-flash-memory/
  */
 #include <EEPROM.h>
-#define EEPROM_SIZE 1
+#define EEPROM_SIZE 10
 #define CONNECTED_BOXES_STORED_LOCATION 0
+#define LED_RING_BRIGHTNESS_STORED_LOCATION 5
 
 //! Function Definition
 void configure_timer(void);
@@ -174,7 +201,7 @@ void wifi_ntp_setup(void);
 void rtc_setup(void);
 void oled_setup(void);
 void sd_setup(void);
-void rgb_ring_setup(void);
+void rgb_ring_setup(int led_brightness = 110);
 void aws_setup(void);
 void print_company_logo(void);
 void update_oled(String text1, String text2, String text3);
@@ -183,6 +210,7 @@ void printLocalTime(void);
 void rtc_get_time(void);
 void solid_rgb_ring(uint32_t color);
 void halt_rgb_ring(int led_number);
+void change_led_ring_brightness(void);
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
 void createDir(fs::FS &fs, const char *path);
 void deleteFile(fs::FS &fs, const char *path);
@@ -265,7 +293,6 @@ void pin_setup(void)
 void wifi_ntp_setup(void)
 {
     solid_rgb_ring(YELLOW_COLOR);
-
     WiFi.disconnect(); // Disconnect to any connected wifi if any
     RL.readLines(SSID_FILE, &handleEachSSIDLine);
     RL.readLines(PASSWORD_FILE, &handleEachPasswordLine);
@@ -375,10 +402,13 @@ void sd_setup(void)
 /**
  * @brief Setting up the NeoPixels LED Ring
  */
-void rgb_ring_setup(void)
+void rgb_ring_setup(int led_brightness)
 {
     pixels.begin();
-    pixels.setBrightness(LED_BRIGHTNESS * 255 / 100);
+    if (led_brightness > 100)
+        led_brightness = EEPROM.read(LED_RING_BRIGHTNESS_STORED_LOCATION);
+    Serial.println("LED Brightness: " + (String)led_brightness);
+    pixels.setBrightness(led_brightness * 255 / 100);
     return;
 }
 
@@ -430,7 +460,7 @@ void print_company_logo(void)
 void update_oled(String text1, String text2, String text3)
 {
     display.clearDisplay();
-    display.setTextSize(OLED_MENU_TEXT_SIZE);
+    display.setTextSize(OLED_TEXT_SIZE);
     display.setTextColor(WHITE);
     display.setCursor(0, 0);
     display.println(text1);
@@ -459,15 +489,15 @@ void oled_menu_update(String item1, String item2, String item3)
     display.setCursor(0, 0);
     display.println("-");
 
-    display.setCursor(15, 0);
+    display.setCursor(10, 0);
     display.println(item1);
     if (item1.length() <= CHARACTER_LENGTH)
     {
-        display.setCursor(15, SCREEN_HEIGHT / 3);
+        display.setCursor(0, SCREEN_HEIGHT / 3);
         display.println(item2);
         if (item2.length() <= CHARACTER_LENGTH)
         {
-            display.setCursor(15, 2 * SCREEN_HEIGHT / 3);
+            display.setCursor(0, 2 * SCREEN_HEIGHT / 3);
             display.println(item3);
         }
     }
@@ -528,14 +558,88 @@ void printLocalTime(void)
     return;
 }
 
+void notFound(AsyncWebServerRequest *request)
+{
+    request->send(404, "text/plain", "Not found");
+}
+
 /**
  * @brief Setup ESP as WiFi Router and get new login credentials
  * Reference: https://randomnerdtutorials.com/esp32-esp8266-input-data-html-form/
  */
 void connect_to_new_wifi(void)
 {
+    solid_rgb_ring(YELLOW_COLOR);
     update_oled("Connect", "To New", "WiFi");
     delay(500);
+    deleteFile(SD, SSID_FILE);
+    deleteFile(SD, PASSWORD_FILE);
+
+    IPAddress local_ip(192, 168, 1, 1);
+    IPAddress gateway(192, 168, 1, 1);
+    IPAddress subnet(255, 255, 255, 0);
+
+    WiFi.mode(WIFI_AP);
+    char temp_ssid[] = "ESP32";
+    char temp_pwd[] = "123456789";
+    WiFi.softAP(temp_ssid, temp_pwd);
+    WiFi.softAPConfig(local_ip, gateway, subnet);
+    delay(100);
+    Serial.print("IP address: 192.168.1.1");
+
+    // Send web page with input fields to client
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+              { request->send_P(200, "text/html", index_html); });
+
+    // Send a GET request to <ESP_IP>/get?input1=<inputMessage>
+    server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request)
+              {
+                  String inputMessage;
+                  String inputParam;
+                  // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
+                  if (request->hasParam(PARAM_INPUT_1))
+                  {
+                      inputMessage = request->getParam(PARAM_INPUT_1)->value();
+                      inputParam = PARAM_INPUT_1;
+                      for (size_t i = 0; i < inputMessage.length(); i++)
+                          ssid[i] = inputMessage[i];
+                      writeFile(SD, SSID_FILE, ssid);
+                      Serial.println((String)ssid);
+                  }
+                  // GET input2 value on <ESP_IP>/get?input2=<inputMessage>
+                  else if (request->hasParam(PARAM_INPUT_2))
+                  {
+                      inputMessage = request->getParam(PARAM_INPUT_2)->value();
+                      inputParam = PARAM_INPUT_2;
+                      for (size_t i = 0; i < inputMessage.length(); i++)
+                          password[i] = inputMessage[i];
+                      writeFile(SD, PASSWORD_FILE, password);
+                      Serial.println((String)password);
+                  }
+                  else
+                  {
+                      inputMessage = "No message sent";
+                      inputParam = "none";
+                  }
+                  Serial.println(inputMessage);
+                  request->send(200, "text/html", "HTTP GET request sent to your ESP on input field (" + inputParam + ") with value: " + inputMessage + "<br><a href=\"/\">Return to Home Page</a>");
+              });
+    server.onNotFound(notFound);
+    server.begin();
+    int i = 0;
+    while (1)
+    {
+        if (i < 100)
+            update_oled("SSID:", (String)temp_ssid, "");
+        else if (i < 200)
+            update_oled("Password:", (String)temp_pwd, "");
+        else if (i < 300)
+            update_oled("Connect @", "https://192.168.1.1/", "");
+        else
+            i = 0;
+        i++;
+        delay(1);
+    }
 }
 
 //TODO: RTC Functions
@@ -593,6 +697,57 @@ void halt_rgb_ring(int led_number)
     led_number = led_number % NUMPIXELS;
     pixels.setPixelColor(led_number, YELLOW_COLOR);
     pixels.show();
+    return;
+}
+
+void change_led_ring_brightness(void)
+{
+    delay(500);
+    String item1 = "Bright.:";
+    String item2 = "";
+    String item3 = "";
+    int current_led_brightness = EEPROM.read(LED_RING_BRIGHTNESS_STORED_LOCATION);
+    item3 = (String)current_led_brightness + '%';
+    oled_menu_update(item1, item2, item3);
+    aLastState = digitalRead(outputA);
+    while (1)
+    {
+        aState = digitalRead(outputA); // Reads the "current" state of the outputA
+        if (aState != aLastState)
+        {
+            // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
+            if (digitalRead(outputB) != aState)
+                current_led_brightness++;
+            else
+                current_led_brightness--;
+
+            if (current_led_brightness > 100)
+                current_led_brightness = 100; // Ensures that the menu list does not go below the coded list to avoid menu display error
+            else if (current_led_brightness <= 0)
+                current_led_brightness = 0; // Ensures that the menu list does not go above the coded list to avoid menu display error
+
+            item1 = "Bright.:";
+            item2 = "";
+            item3 = (String)current_led_brightness + '%';
+            rgb_ring_setup(current_led_brightness);
+            solid_rgb_ring(BLUE_COLOR);
+            oled_menu_update(item1, item2, item3);
+        }
+        aLastState = aState; // Updates the previous state of the outputA with the current state
+        if (digitalRead(outputS) == HIGH)
+        {
+            delay(DEBOUNCE_TIME);
+            if (digitalRead(outputS) == HIGH)
+            {
+                EEPROM.write(LED_RING_BRIGHTNESS_STORED_LOCATION, current_led_brightness);
+                EEPROM.commit();
+                oled_menu_update("Saving", "To", "Memory");
+                delay(500);
+                break;
+            }
+        }
+    }
+    Serial.println("Exit");
     return;
 }
 
@@ -849,9 +1004,7 @@ void read_rotary_encoder(void)
                 if ((int)counter == 0)
                 {
                     if (menu_level == 0)
-                    {
                         break;
-                    }
                     else
                     {
                         menu_level--;
@@ -861,10 +1014,16 @@ void read_rotary_encoder(void)
                 else
                 {
                     counter = 0;
+                    menu_item = 10 * main_list_pos;
                     if (menu_item != 10)
                     {
                         menu_level++;
-                        menu_item = 10 * main_list_pos;
+                        if (menu_item == 40)
+                        {
+                            change_led_ring_brightness();
+                            menu_item = 0;
+                            menu_level--;
+                        }
                     }
                 }
             }
@@ -896,12 +1055,15 @@ void read_rotary_encoder(void)
                     item3 = RECIEVER_ID;
                     break;
 
-                case 40: // Error Log
+                case 40: // Change LED Ring Brightness
+                    break;
+
+                case 50: // Error Log
                     item2 = "Err. Log";
                     item3 = latest_error_log;
                     break;
 
-                case 50: // Contact us
+                case 60: // Contact us
                     item2 = contact_us_link;
                     break;
 
@@ -1434,10 +1596,9 @@ void handleEachPasswordLine(char line[], int lineIndex)
 void write_error_log(String error_log_tag)
 {
     //Writing Error
-    String str_error_log = (String)year + '/' + (String)month + '/' + (String)date + '-' + (String)hour + ':' + (String)minutes + ':' + (String)seconds + error_log_tag;
+    String str_error_log = (String)hour + ':' + (String)minutes + ' ' + error_log_tag;
     latest_error_log = str_error_log;
     char error_log[str_error_log.length()];
-
     for (int i = 0; i < str_error_log.length(); i++)
         error_log[i] = str_error_log[i];
 
@@ -1819,15 +1980,15 @@ void sendData(String box_id, String message)
 void setup()
 {
     Serial.begin(115200);
-    rgb_ring_setup();
+    EEPROM.begin(EEPROM_SIZE);
+    rgb_ring_setup(110);
     oled_setup();
     sd_setup();
     radio.begin();
-    EEPROM.begin(EEPROM_SIZE);
     pin_setup();
     wifi_ntp_setup();
-    aws_setup();
-    read_box_details_from_sd_card();
+    // aws_setup();
+    // read_box_details_from_sd_card();
     RL.readLines(ERROR_LOG_FILE, &handleEachErrorLine);
     // if (BOX_DETAILS[0][0] == NULL)
     // {
@@ -1842,8 +2003,6 @@ void setup()
     timerAlarmEnable(timer);
     print_company_logo();
     lastMillis = millis();
-    EEPROM.write(CONNECTED_BOXES_STORED_LOCATION, 0);
-    EEPROM.commit();
 }
 
 //TODO: Loop for the code
@@ -1866,26 +2025,19 @@ void loop()
         timerAlarmEnable(timer);
     }
 
-    if ((count != 0) && ((count % DELAY_ONE_MINUTES) == 0)) // When Count variable overflows the Timer Value, the periodic box polling is done
-    {
-        solid_rgb_ring(YELLOW_COLOR);
-        regular_box_update(count);
-        if (count >= DELAY_SIXTY_MINUTES)
-        {
-            count = 0;
-        }
+    // if ((count != 0) && ((count % DELAY_ONE_MINUTES) == 0)) // When Count variable overflows the Timer Value, the periodic box polling is done
+    // {
+    //     solid_rgb_ring(YELLOW_COLOR);
+    //     regular_box_update(count);
+    //     if (count >= DELAY_SIXTY_MINUTES)
+    //         count = 0;
 
-        print_company_logo();
-    }
+    //     print_company_logo();
+    // }
 
     if ((millis() - lastMillis) > MAIN_SCREEN_REFRESH_TIME)
     {
         lastMillis = millis();
-
-        if (main_screen_count >= MENU_SCREEN_LIST)
-            main_screen_count = 1;
-        else
-            main_screen_count++;
 
         if (main_screen_count == 1) // Print Company Logo
             print_company_logo();
@@ -1929,5 +2081,10 @@ void loop()
 
         else if (main_screen_count == 6) // Print Latest Error Log
             update_oled("Latest", "Error", latest_error_log);
+
+        if (main_screen_count >= MENU_SCREEN_LIST)
+            main_screen_count = 1;
+        else
+            main_screen_count++;
     }
 }
