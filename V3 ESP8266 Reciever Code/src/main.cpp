@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @author Parth Pate; (parth.pmech@gmail.com)
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2021-11-23
  * @copyright Copyright (c) 2021
@@ -15,9 +15,9 @@
 #include "ERROR_LOG.h"
 
 //! WiFi and NTP Setup
-//Reference (NTP Setup): https://lastminuteengineers.com/esp32-ntp-server-date-time-tutorial/
-//Reference (ESP32 Hotspot): https://lastminuteengineers.com/creating-esp32-web-server-arduino-ide/
-//Reference (ESP32 Server): https://randomnerdtutorials.com/esp32-esp8266-input-data-html-form/
+// Reference (NTP Setup): https://lastminuteengineers.com/esp32-ntp-server-date-time-tutorial/
+// Reference (ESP32 Hotspot): https://lastminuteengineers.com/creating-esp32-web-server-arduino-ide/
+// Reference (ESP32 Server): https://randomnerdtutorials.com/esp32-esp8266-input-data-html-form/
 #include <WiFi.h>
 #include "time.h"
 #include <AsyncTCP.h>
@@ -56,16 +56,16 @@ const char index_html[] PROGMEM = R"rawliteral(
 </body></html>)rawliteral";
 
 //! RTC DS3231 Setup
-//Reference (RTC DS3231): https://how2electronics.com/esp32-ds3231-based-real-time-clock/
-//Reference (RTCLib Library): //https://adafruit.github.io/RTClib/html/index.html/
+// Reference (RTC DS3231): https://how2electronics.com/esp32-ds3231-based-real-time-clock/
+// Reference (RTCLib Library): //https://adafruit.github.io/RTClib/html/index.html/
 #include <SPI.h>
 #include <Wire.h>
 #include "RTClib.h"
 RTC_DS3231 rtc;
 
 //! OLED Setup
-//Reference (OLED): https://randomnerdtutorials.com/esp32-ssd1306-oled-display-arduino-ide/
-//Reference (Display LOGO on OLED): Reference: https://create.arduino.cc/projecthub/Arnov_Sharma_makes/displaying-your-own-photo-on-oled-display-5a8e8b
+// Reference (OLED): https://randomnerdtutorials.com/esp32-ssd1306-oled-display-arduino-ide/
+// Reference (Display LOGO on OLED): Reference: https://create.arduino.cc/projecthub/Arnov_Sharma_makes/displaying-your-own-photo-on-oled-display-5a8e8b
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "COMPANY_LOGO.c"
@@ -98,7 +98,8 @@ String main_menu[MAIN_MENU_LIST][SUB_MENU_LEVEL][SUB_MENU_LIST] = {
 };
 
 //! NRF24 Setup
-//Reference (NRF24): https://howtomechatronics.com/tutorials/arduino/arduino-wireless-communication-nrf24l01-tutorial/
+// Reference (NRF24): https://howtomechatronics.com/tutorials/arduino/arduino-wireless-communication-nrf24l01-tutorial/
+// Reference (NRF24 Interrupt): https://www.youtube.com/watch?v=vzWcBAWpTx0
 #include <nRF24L01.h>
 #include <RF24.h>
 RF24 radio(NRF24_CE, NRF24_CSN);
@@ -118,8 +119,8 @@ byte BROADCAST_RECIEVER_ADDRESS[COMMUNICATION_ID_LENGTH] = "boxit";
 String BOX_DETAILS[MAX_BOXES][3];
 
 //! SD Card Setup
-//Reference (SD Card Module): https://randomnerdtutorials.com/esp32-microsd-card-arduino/
-//Reference: (ReadLines Library): https://github.com/mykeels/ReadLines/blob/master/examples/print-line-and-index/print-line-only.ino
+// Reference (SD Card Module): https://randomnerdtutorials.com/esp32-microsd-card-arduino/
+// Reference: (ReadLines Library): https://github.com/mykeels/ReadLines/blob/master/examples/print-line-and-index/print-line-only.ino
 #include "FS.h"
 #include "SD.h"
 #include <ReadLines.h>
@@ -133,7 +134,7 @@ char file_extension[] = ".txt";
 char line1[RL_MAX_CHARS];
 
 //! Encoder Setup
-//Reference (Encoder): https://howtomechatronics.com/tutorials/arduino/rotary-encoder-works-use-arduino/
+// Reference (Encoder): https://howtomechatronics.com/tutorials/arduino/rotary-encoder-works-use-arduino/
 #define outputA RE_DT
 #define outputB RE_CLK
 #define outputS RE_SW
@@ -143,9 +144,9 @@ int aState;
 int aLastState;
 
 //! WS2812 Neopixel Ring
-//Reference (WS2812 NeoPixel LED Ring): https://create.arduino.cc/projecthub/robocircuits/neopixel-tutorial-1ccfb9
+// Reference (WS2812 NeoPixel LED Ring): https://create.arduino.cc/projecthub/robocircuits/neopixel-tutorial-1ccfb9
 #include <Adafruit_NeoPixel.h>
-#define NUMPIXELS 8 //Number of LEDs on NeoPixel
+#define NUMPIXELS 8 // Number of LEDs on NeoPixel
 Adafruit_NeoPixel pixels(NUMPIXELS, RGB_D1, NEO_GRB + NEO_KHZ800);
 #define RED_COLOR pixels.Color(255, 0, 0)
 #define GREEN_COLOR pixels.Color(0, 255, 0)
@@ -161,27 +162,28 @@ MQTTClient client;
 
 //! Setting Up Timers
 /**
-* Reference (Timer Alarm): https://diyprojects.io/esp32-timers-alarms-interrupts-arduino-code/#.YZjLhaJBzDe
-*@brief 
-*Timer of 5 mins needs to be made
-*That is 5 * 60 sec = 300 sec.
-*Prescalar possible : 
-* -2 ^ 8 = 256 = 4 mins 16 secs -> We are choosing this option as this is closest to the required timer
-* -2 ^ 9 = 512 = 8 mins 32 secs *
-*/
-#define DELAY_ONE_MINUTES 1 * 60     // 1 min periodic count
-#define DELAY_FIVE_MINUTES 5 * 60    // 5 mins periodic count
-#define DELAY_TEN_MINUTES 10 * 60    // 10 mins periodic count
-#define DELAY_THIRTY_MINUTES 30 * 60 // 30 mins periodic count
-#define DELAY_SIXTY_MINUTES 60 * 60  // 60 mins periodic count
-#define ESP32_CLOCK 80000000         // 80MHz Clock on ESP32
-#define PRESCALAR 80                 // Prescalar creates a timer to set the alarm for 4 min 16 sec
+ * Reference (Timer Alarm): https://diyprojects.io/esp32-timers-alarms-interrupts-arduino-code/#.YZjLhaJBzDe
+ *@brief
+ *Timer of 5 mins needs to be made
+ *That is 5 * 60 sec = 300 sec.
+ *Prescalar possible :
+ * -2 ^ 8 = 256 = 4 mins 16 secs -> We are choosing this option as this is closest to the required timer
+ * -2 ^ 9 = 512 = 8 mins 32 secs *
+ */
+#define DELAY_ONE_MINUTES 60      // 1 min periodic count
+#define DELAY_FIVE_MINUTES 300    // 5 mins periodic count
+#define DELAY_TEN_MINUTES 600     // 10 mins periodic count
+#define DELAY_THIRTY_MINUTES 1800 // 30 mins periodic count
+#define DELAY_SIXTY_MINUTES 3600  // 60 mins periodic count
+#define ESP32_CLOCK 80000000      // 80MHz Clock on ESP32
+#define PRESCALAR 80              // Prescalar creates a timer to set the alarm for 4 min 16 sec
 hw_timer_t *timer = NULL;
 /**
  * @brief The count variable increments everytime the timer overflows,
  * When count > timer delay, the polling of boxes is done.
  */
 volatile int count;
+int previous_count = 0; // Logs the previous time update loop was triggered
 
 //! Setting up EEPROM
 /**
@@ -198,6 +200,7 @@ void configure_timer(void);
 void IRAM_ATTR onTime(void);
 void pin_setup(void);
 void wifi_ntp_setup(void);
+void nrf24_setup(void);
 void rtc_setup(void);
 void oled_setup(void);
 void sd_setup(void);
@@ -224,7 +227,8 @@ void update_box_data(String box_id, byte *ptr_box_address);
 void change_box_setting(String box_id, byte *ptr_box_address, String dt, String st, String bt);
 void sound_buzzer(String box_id, byte *ptr_box_address);
 void write_radio(byte *ptr_transmission_address, String transmission_message);
-String read_radio(byte *ptr_recieving_address);
+void set_radio_in_read_mode(byte *ptr_recieving_address);
+String read_radio(void);
 void regular_box_update(int counter);
 String fetch_box_address(String box_id);
 void read_box_details_from_sd_card(void);
@@ -247,7 +251,7 @@ void connect_to_new_wifi(void);
 
 //! Function Declaration
 
-//TODO: Timer Functions
+// TODO: Timer Functions
 /**
  * @brief Configuring Timer for Alarm.
  */
@@ -275,7 +279,7 @@ void IRAM_ATTR onTime(void)
     return;
 }
 
-//TODO: Basic Setup for the code
+// TODO: Basic Setup for the code
 /**
  * @brief Setting up the pins INPUT/OUTPUT
  */
@@ -284,6 +288,7 @@ void pin_setup(void)
     pinMode(outputA, INPUT);
     pinMode(outputB, INPUT);
     pinMode(outputS, INPUT);
+    pinMode(NRF24_IRQ, INPUT);
     return;
 }
 
@@ -318,6 +323,7 @@ void wifi_ntp_setup(void)
         else
         {
             wifi_connection_status = 1;
+            Serial.println("\nWi-Fi Connected!");
             break;
         }
     }
@@ -328,7 +334,7 @@ void wifi_ntp_setup(void)
         solid_rgb_ring(GREEN_COLOR);
         update_oled("Wifi", "Connected", ssid);
         configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); // Configure NTP
-        printLocalTime();                                         //Fetching time from NTP
+        printLocalTime();                                         // Fetching time from NTP
     }
     else
     {
@@ -338,6 +344,14 @@ void wifi_ntp_setup(void)
         write_error_log(WIFI_NOT_CONNECTED); // Error Log
     }
     return;
+}
+
+void nrf24_setup(void)
+{
+    radio.begin();
+    radio.setAutoAck(1);
+    radio.enableAckPayload();
+    radio.maskIRQ(1, 1, 0);
 }
 
 /**
@@ -380,7 +394,7 @@ void oled_setup(void)
 
 /**
  * @brief Setup SD Card
- * 
+ *
  */
 void sd_setup(void)
 {
@@ -414,7 +428,7 @@ void rgb_ring_setup(int led_brightness)
 
 /**
  * @brief Setup AWS
- * 
+ *
  */
 void aws_setup(void)
 {
@@ -436,7 +450,7 @@ void aws_setup(void)
     }
 }
 
-//TODO: OLED Functions
+// TODO: OLED Functions
 
 /**
  * @brief Print Company Logo on OLED and turn the switch LED Ring to BLUE Color
@@ -452,7 +466,7 @@ void print_company_logo(void)
 
 /**
  * @brief Display String on OLED
- * 
+ *
  * @param text1 Text on Line 1
  * @param text2 Text on Line 2
  * @param text3 Text on Line 3
@@ -474,7 +488,7 @@ void update_oled(String text1, String text2, String text3)
 
 /**
  * @brief Display Menu Items on the OLED
- * 
+ *
  * @param item1 Menu Item 1 on Line 1
  * @param item2 Menu Item 2 on Line 2
  * @param item3 Menu Item 3 on Line 3
@@ -512,7 +526,7 @@ void oled_menu_update(String item1, String item2, String item3)
     return;
 }
 
-//TODO: WiFi and NTP Functions
+// TODO: WiFi and NTP Functions
 /**
  * @brief Tries to get local time from NTP:
  * -> If it's successful, The year, month, date, hour, minutes, seconds is updated to global variables with time from NTP,
@@ -622,8 +636,7 @@ void connect_to_new_wifi(void)
                       inputParam = "none";
                   }
                   Serial.println(inputMessage);
-                  request->send(200, "text/html", "HTTP GET request sent to your ESP on input field (" + inputParam + ") with value: " + inputMessage + "<br><a href=\"/\">Return to Home Page</a>");
-              });
+                  request->send(200, "text/html", "HTTP GET request sent to your ESP on input field (" + inputParam + ") with value: " + inputMessage + "<br><a href=\"/\">Return to Home Page</a>"); });
     server.onNotFound(notFound);
     server.begin();
     int i = 0;
@@ -633,7 +646,7 @@ void connect_to_new_wifi(void)
             update_oled("SSID:", (String)temp_ssid, "");
         else if (i < 200)
             update_oled("Password:", (String)temp_pwd, "");
-        else if (i < 300)
+        else if (i < 500)
             update_oled("Connect @", "https://192.168.1.1/", "");
         else
             i = 0;
@@ -642,10 +655,10 @@ void connect_to_new_wifi(void)
     }
 }
 
-//TODO: RTC Functions
+// TODO: RTC Functions
 /**
  * @brief Fetch Time from RTC and save it in global time variables
- * 
+ *
  */
 void rtc_get_time(void)
 {
@@ -671,10 +684,10 @@ void rtc_get_time(void)
     return;
 }
 
-//TODO: RGB NeoPixel Functions
+// TODO: RGB NeoPixel Functions
 /**
  * @brief Setting the RGB Ring Light to a solid color
- * 
+ *
  * @param color pixels.Color(R:0-255, G:0-255, B:0-255)
  */
 void solid_rgb_ring(uint32_t color)
@@ -688,7 +701,7 @@ void solid_rgb_ring(uint32_t color)
 
 /**
  * @brief Setting the LED Ring light one led at time to display progress bar on the pixel ring.
- * 
+ *
  * @param led_number LED Ring Number
  */
 void halt_rgb_ring(int led_number)
@@ -751,13 +764,13 @@ void change_led_ring_brightness(void)
     return;
 }
 
-//TODO: MicroSD Card Functions3
+// TODO: MicroSD Card Functions3
 /**
  * @brief List All the Available Directories
- * 
- * @param fs 
- * @param dirname 
- * @param levels 
+ *
+ * @param fs
+ * @param dirname
+ * @param levels
  */
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 {
@@ -799,7 +812,7 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 
 /**
  * @brief Create a Directory on SD Card
- * 
+ *
  * @param fs SD Object
  * @param path The Location Path of the folder
  */
@@ -825,9 +838,9 @@ void createDir(fs::FS &fs, const char *path)
 
 /**
  * @brief Delete the File
- * 
+ *
  * @param fs SD Object
- * @param path 
+ * @param path
  */
 void deleteFile(fs::FS &fs, const char *path)
 {
@@ -844,7 +857,7 @@ void deleteFile(fs::FS &fs, const char *path)
 
 /**
  * @brief Read a file on SD Card
- * 
+ *
  * @param fs SD Object
  * @param path The Location path of the file
  * @return int Exit Status
@@ -874,7 +887,7 @@ void readFile(fs::FS &fs, const char *path)
 
 /**
  * @brief Write to a file on SD Card
- * 
+ *
  * @param fs SD Object
  * @param path Path of the file
  * @param message Message to be written in the file
@@ -912,7 +925,7 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
 /**
  * @brief Append the message to the file
  * -> If file doesn't exist, then a new file is created and then written to it.
- * 
+ *
  * @param fs SD Object
  * @param path Path of the file
  * @param message Message to be written to the file
@@ -948,7 +961,7 @@ void appendFile(fs::FS &fs, const char *path, const char *message)
     return;
 }
 
-//TODO: Rotary Encoder Functions
+// TODO: Rotary Encoder Functions
 /**
  * @brief Reads the Rotary Encoder and Update the OLED to interface the menu
  * After selecting the menu item, the respective function is executed.
@@ -1090,9 +1103,9 @@ void read_rotary_encoder(void)
     solid_rgb_ring(BLUE_COLOR);
     return;
 }
-//TODO: Menu Operation Functions
+// TODO: Menu Operation Functions
 
-//TODO: Special Protocols
+// TODO: Special Protocols
 /**
  * @brief Protocol to add new box as per AWS's recieved command
  * The box is added as per the process listed below:
@@ -1108,7 +1121,7 @@ void read_rotary_encoder(void)
  * 5.2.3 The String in format <box_id><communicaiton_address> is saved in the SD Card
  * 5.2.4 Box_ID_Array is updated with the newly added box.
  * 5.2.5 AWS is notified by calling send_success_data(<box_id>,add,connection_status,<communication_address>)
- * 
+ *
  * @param box_id
  */
 void add_new_box(String box_id, String dt)
@@ -1132,9 +1145,22 @@ void add_new_box(String box_id, String dt)
     write_radio(BROADCAST_RECIEVER_ADDRESS, message);
 
     // Wait for the Box to return a message
-    String recieved_message = read_radio(communication_address);
-    int connection_status = 0; // 0 -> Failure, 1 -> Success
+    set_radio_in_read_mode(communication_address);
+    int i = 0;
+    String recieved_message = "";
+    int max_attempts = 50;
+    while (i < max_attempts)
+    {
+        if (digitalRead(NRF24_IRQ) == LOW)
+        {
+            recieved_message = read_radio();
+            break;
+        }
+        delay(100);
+        i++;
+    }
 
+    int connection_status = 0; // 0 -> Failure, 1 -> Success
     // Check if the recieved message is in format "pair,ok,<box_id>"
     if (recieved_message = ("pair,ok," + (String)box_id))
     { // TRUE
@@ -1189,8 +1215,8 @@ void add_new_box(String box_id, String dt)
  * 2.2 If message is in format, AWS is notified, delay of 30 sec is waited.
  * 2.2.1 After the delay of 30 secs, write to radio for the updated calibration data with message "calibration_data_update"
  * 2.2.2 Read the recieved message from NRF for the updated values
- * 2.2.3 
- * 
+ * 2.2.3
+ *
  * @param box_id Box ID
  * @param box_address Box Communication Address
  */
@@ -1204,9 +1230,22 @@ void calibrate_box(String box_id, byte *ptr_box_address)
     write_radio(ptr_box_address, message);
 
     // Check if the message recieved is in required format or not
-    String recieved_message = read_radio(ptr_box_address);
-    int connection_status = 0; // 0 -> Failure, 1 -> Success
+    set_radio_in_read_mode(ptr_box_address);
+    int i = 0;
+    String recieved_message = "";
+    int max_attempts = 50;
+    while (i < max_attempts)
+    {
+        if (digitalRead(NRF24_IRQ) == LOW)
+        {
+            recieved_message = read_radio();
+            break;
+        }
+        delay(100);
+        i++;
+    }
 
+    int connection_status = 0; // 0 -> Failure, 1 -> Success
     // Check if the NRF connection was successful or not
     if (recieved_message = ("cali,ok"))
     {
@@ -1233,8 +1272,22 @@ void calibrate_box(String box_id, byte *ptr_box_address)
     {
         delay(30 * 1000);                                        // Wait for calibration to complete
         write_radio(ptr_box_address, "calibration_data_update"); // Write to radio fpr updated values
-        String update_message = read_radio(ptr_box_address);     // Read the radio
-        if (update_message != "")                                // Check if the radio message is not empty
+        set_radio_in_read_mode(ptr_box_address);
+        int i = 0;
+        String update_message = "";
+        int max_attempts = 50;
+        while (i < max_attempts)
+        {
+            if (digitalRead(NRF24_IRQ) == LOW)
+            {
+                update_message = read_radio();
+                break;
+            }
+            delay(100);
+            i++;
+        }
+
+        if (update_message != "") // Check if the radio message is not empty
         {
             solid_rgb_ring(GREEN_COLOR);
             update_oled("Calibration", "Successful", box_id);
@@ -1259,9 +1312,9 @@ void calibrate_box(String box_id, byte *ptr_box_address)
 
 /**
  * @brief Contact the Boxes to collect the data from it
- * 
- * @param box_id 
- * @param box_address 
+ *
+ * @param box_id
+ * @param box_address
  */
 void update_box_data(String box_id, byte *ptr_box_address)
 {
@@ -1271,7 +1324,21 @@ void update_box_data(String box_id, byte *ptr_box_address)
     write_radio(ptr_box_address, write_message);
 
     // Read the radio
-    String message = read_radio(ptr_box_address);
+    set_radio_in_read_mode(ptr_box_address);
+    int i = 0;
+    String message = "";
+    int max_attempts = 50;
+    while (i < max_attempts)
+    {
+        if (digitalRead(NRF24_IRQ) == LOW)
+        {
+            message = read_radio();
+            break;
+        }
+        delay(100);
+        i++;
+    }
+
     if (message != "")
     { // Correct format: "<count>,<temperature>,<battery>,<offset>,<average_wesight>"
 
@@ -1314,12 +1381,12 @@ void update_box_data(String box_id, byte *ptr_box_address)
 
 /**
  * @brief Change Box Settings
- * 
- * @param box_id 
- * @param box_address 
- * @param dt 
- * @param st 
- * @param bt 
+ *
+ * @param box_id
+ * @param box_address
+ * @param dt
+ * @param st
+ * @param bt
  */
 void change_box_setting(String box_id, byte *ptr_box_address, String dt, String st, String bt)
 {
@@ -1330,7 +1397,21 @@ void change_box_setting(String box_id, byte *ptr_box_address, String dt, String 
     String message = "chng," + dt + st + bt;
     write_radio(ptr_box_address, message);
 
-    String recieved_message = read_radio(ptr_box_address);
+    set_radio_in_read_mode(ptr_box_address);
+    int i = 0;
+    String recieved_message = "";
+    int max_attempts = 50;
+    while (i < max_attempts)
+    {
+        if (digitalRead(NRF24_IRQ) == LOW)
+        {
+            recieved_message = read_radio();
+            break;
+        }
+        delay(100);
+        i++;
+    }
+
     if (recieved_message == "chng,ok")
     {
         success_code = 1;
@@ -1355,9 +1436,9 @@ void change_box_setting(String box_id, byte *ptr_box_address, String dt, String 
 
 /**
  * @brief Buzz the box
- * 
- * @param box_id 
- * @param box_address 
+ *
+ * @param box_id
+ * @param box_address
  */
 void sound_buzzer(String box_id, byte *ptr_box_address)
 {
@@ -1371,10 +1452,10 @@ void sound_buzzer(String box_id, byte *ptr_box_address)
     update_oled("Buzz", "Box", "Successful");
 }
 
-//TODO: NRF24 Functions
+// TODO: NRF24 Functions
 /**
  * @brief Write a message to the NRF Radio
- * 
+ *
  * @param transmission_address 5 byte Transmission Address
  * @param transmission_message 32 byte Transmission Message
  */
@@ -1392,21 +1473,17 @@ void write_radio(byte *ptr_transmission_address, String transmission_message)
     return;
 }
 
-/**
- * @brief Reading the Message from Radio
- * 
- * @param recieving_address 5 byte Recieving Address
- * @return String Recieved Message
- */
-String read_radio(byte *ptr_recieving_address)
+void set_radio_in_read_mode(byte *ptr_recieving_address)
 {
-    update_oled("Recieving", "Message", "via NRF");
-
     radio.openReadingPipe(0, *ptr_recieving_address);
     radio.setPALevel(RF24_PA_MIN);
     radio.startListening();
     delay(100);
+}
 
+String read_radio(void)
+{
+    update_oled("Recieving", "Message", "via NRF");
     String recieved_message = "";
     if (radio.available())
     {
@@ -1416,7 +1493,6 @@ String read_radio(byte *ptr_recieving_address)
     else
         update_oled("Failed", "Message", "via NRF");
     delay(100);
-
     return recieved_message;
 }
 
@@ -1442,12 +1518,11 @@ void regular_box_update(int counter)
         String str_delay_time = BOX_DETAILS[i][2];
         char char_delay_time[2];
         for (int i = 0; i < 2; i++)
-        {
             char_delay_time[i] = str_delay_time[i];
-        }
         int dt = atoi(char_delay_time);
         Serial.println("dt: " + (String)dt);
-        if (counter % dt == 0)
+
+        if (counter % (dt * 60) == 0)
         {
             String box_id = BOX_DETAILS[i][0];
             String address = BOX_DETAILS[i][1];
@@ -1468,7 +1543,7 @@ void regular_box_update(int counter)
 
 /**
  * @brief Fetch Box Address from the Box ID Array matrix
- * 
+ *
  * @param box_id 9 byte Box ID
  * @return String 5 byte Box Communication Address
  */
@@ -1487,7 +1562,7 @@ String fetch_box_address(String box_id)
     return address;
 }
 
-//TODO: Auxillary Functions
+// TODO: Auxillary Functions
 /**
  * @brief Reading the SD Card File which stores the "Box ID and communication Address"
  */
@@ -1503,7 +1578,7 @@ void read_box_details_from_sd_card(void)
 
 /**
  * @brief Read File Line by Line
- * 
+ *
  * @param line The Line to be read and saved
  * @param lineIndex The Index of the Line to be worked on
  */
@@ -1538,9 +1613,9 @@ void handleEachLine(char line[], int lineIndex)
 
 /**
  * @brief Read Error Log File Line by Line and save the latest error log on the variable
- * 
- * @param line 
- * @param lineIndex 
+ *
+ * @param line
+ * @param lineIndex
  */
 void handleEachErrorLine(char line[], int lineIndex)
 {
@@ -1557,9 +1632,9 @@ void handleEachErrorLine(char line[], int lineIndex)
 
 /**
  * @brief Read Line by Line for SSID File
- * 
- * @param line 
- * @param lineIndex 
+ *
+ * @param line
+ * @param lineIndex
  */
 void handleEachSSIDLine(char line[], int lineIndex)
 {
@@ -1573,9 +1648,9 @@ void handleEachSSIDLine(char line[], int lineIndex)
 
 /**
  * @brief Read Line by Line for Password File
- * 
- * @param line 
- * @param lineIndex 
+ *
+ * @param line
+ * @param lineIndex
  */
 void handleEachPasswordLine(char line[], int lineIndex)
 {
@@ -1591,11 +1666,11 @@ void handleEachPasswordLine(char line[], int lineIndex)
  * @brief Write Error Log to SD Card in ERROR_LOG_FILE
  * Format: YYYY/MM/DD-HH:MM:SS-#<XXXX>
  * <XXXX> - Error Code
- * @param error_log_tag 
+ * @param error_log_tag
  */
 void write_error_log(String error_log_tag)
 {
-    //Writing Error
+    // Writing Error
     String str_error_log = (String)hour + ':' + (String)minutes + ' ' + error_log_tag;
     latest_error_log = str_error_log;
     char error_log[str_error_log.length()];
@@ -1605,19 +1680,19 @@ void write_error_log(String error_log_tag)
     writeFile(SD, ERROR_LOG_FILE, error_log);
 }
 
-//TODO: AWS Functions
+// TODO: AWS Functions
 
 /**
  * @brief This function is activated when the message is recieved from AWS
- * 
- * @param topic 
- * @param payload 
+ *
+ * @param topic
+ * @param payload
  */
 void messageReceived(String &topic, String &payload)
 {
     timerStop(timer);
     timerAlarmDisable(timer);
-    //Reference (JSON to String Converter): https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonParserExample/JsonParserExample.ino
+    // Reference (JSON to String Converter): https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonParserExample/JsonParserExample.ino
     solid_rgb_ring(YELLOW_COLOR);
     update_oled("Message", "Recieved", "from AWS");
 
@@ -1651,9 +1726,9 @@ void messageReceived(String &topic, String &payload)
         for (size_t i = 0; i < COMMUNICATION_ID_LENGTH; i++)
             box_address[i] = address[i];
 
-        if (cmd == "calibrate") //Calibrate box parameters
+        if (cmd == "calibrate") // Calibrate box parameters
             calibrate_box(box_id, box_address);
-        else if (cmd == "ask") //Ask box for updated values
+        else if (cmd == "ask") // Ask box for updated values
         {
             rtc_get_time();
             solid_rgb_ring(YELLOW_COLOR);
@@ -1860,12 +1935,12 @@ void checkWiFiThenReboot(void)
 
 /**
  * @brief Upload data from special protocols to AWS
- * 
- * @param box_id 
- * @param command 
- * @param success_status 
- * @param param1 
- * @param param2 
+ *
+ * @param box_id
+ * @param command
+ * @param success_status
+ * @param param1
+ * @param param2
  */
 void send_Success_Data(String box_id, String command, int success_status, String param1, String param2, String param3)
 {
@@ -1917,9 +1992,9 @@ void send_Success_Data(String box_id, String command, int success_status, String
 
 /**
  * @brief Upload data to AWS for periodic box updates
- * 
- * @param box_id 
- * @param message 
+ *
+ * @param box_id
+ * @param message
  */
 void sendData(String box_id, String message)
 {
@@ -1940,11 +2015,11 @@ void sendData(String box_id, String message)
         else
             j++;
     }
-    String c = (String)params[0]; //Count
-    String t = (String)params[1]; //Temperature
-    String b = (String)params[2]; //Battery
-    String o = (String)params[3]; //Offset
-    String a = (String)params[4]; //Average Weight
+    String c = (String)params[0]; // Count
+    String t = (String)params[1]; // Temperature
+    String b = (String)params[2]; // Battery
+    String o = (String)params[3]; // Offset
+    String a = (String)params[4]; // Average Weight
 
     StaticJsonDocument<50> doc;
     doc["time"] = (char)year + '/' + (char)month + '/' + (char)date + ' ' + (char)hour + ':' + (char)minutes + ':' + (char)seconds;
@@ -1976,16 +2051,16 @@ void sendData(String box_id, String message)
         update_oled("AWS", "update", "Success");
 }
 
-//TODO: Basic Setup, Code Operation Starts here
+// TODO: Basic Setup, Code Operation Starts here
 void setup()
 {
     Serial.begin(115200);
+    pin_setup();
     EEPROM.begin(EEPROM_SIZE);
     rgb_ring_setup(110);
     oled_setup();
+    nrf24_setup();
     sd_setup();
-    radio.begin();
-    pin_setup();
     wifi_ntp_setup();
     // aws_setup();
     // read_box_details_from_sd_card();
@@ -2005,11 +2080,12 @@ void setup()
     lastMillis = millis();
 }
 
-//TODO: Loop for the code
+// TODO: Loop for the code
 void loop()
 {
 
-    if (digitalRead(outputS) == HIGH) // Detects when the rotary encoder button is pressed
+    //? Detects when the rotary encoder button is pressed
+    if (digitalRead(outputS) == HIGH)
     {
         timerStop(timer);
         timerAlarmDisable(timer);
@@ -2023,40 +2099,52 @@ void loop()
         delay(500);
         timerStart(timer);
         timerAlarmEnable(timer);
+        set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
     }
 
-    // if ((count != 0) && ((count % DELAY_ONE_MINUTES) == 0)) // When Count variable overflows the Timer Value, the periodic box polling is done
-    // {
-    //     solid_rgb_ring(YELLOW_COLOR);
-    //     regular_box_update(count);
-    //     if (count >= DELAY_SIXTY_MINUTES)
-    //         count = 0;
+    //? When Count variable overflows the Timer Value, the periodic box polling is done
+    if ((count != 0) && ((count % DELAY_ONE_MINUTES) == 0))
+    {
+        if (previous_count != count)
+        {
+            Serial.println("Hit at: " + (String)count + " seconds");
+            solid_rgb_ring(YELLOW_COLOR);
+            //     regular_box_update(count);
+            if (count >= DELAY_SIXTY_MINUTES)
+                count = 0;
+            previous_count = count;
+            print_company_logo();
+            set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
+        }
+    }
 
-    //     print_company_logo();
-    // }
-
+    //? Main Splash Screen Cycle
     if ((millis() - lastMillis) > MAIN_SCREEN_REFRESH_TIME)
     {
         lastMillis = millis();
-
-        if (main_screen_count == 1) // Print Company Logo
+        switch (main_screen_count)
+        {
+        case 1: // Printing Company Logo
             print_company_logo();
+            break;
 
-        else if (main_screen_count == 2) //Print Connected Boxes
+        case 2: // Shows the currently connected boxes
         {
             connected_boxes = EEPROM.read(CONNECTED_BOXES_STORED_LOCATION);
             update_oled("Connected", "Boxes:", (String)connected_boxes);
         }
+        break;
 
-        else if (main_screen_count == 3) // Print WiFi Status
+        case 3: // Checks the status of the Wi-Fi Connection
         {
             String wifi_connection_status = "Disconnected";
             if (WiFi.status() == WL_CONNECTED)
                 wifi_connection_status = "Connected";
             update_oled("WiFi", ssid, wifi_connection_status);
         }
+        break;
 
-        else if (main_screen_count == 4) // Print Date and Time
+        case 4: // Fetches latest time from RTC
         {
             DateTime now = rtc.now();
             year = now.year();
@@ -2070,21 +2158,41 @@ void loop()
             String time = (String)hour + ':' + (String)minutes + ':' + (String)seconds;
             update_oled("Date Time", day, time);
         }
+        break;
 
-        else if (main_screen_count == 5) // Print Cloud Status
+        case 5: // Checks AWS Connection
         {
             String mqtt_connection_status = "Disconnected";
             if (client.connected())
                 mqtt_connection_status = "Connected";
             update_oled("MQTT", mqtt_connection_status, "");
         }
+        break;
 
-        else if (main_screen_count == 6) // Print Latest Error Log
+        case 6: // Shows the latest Error Log
             update_oled("Latest", "Error", latest_error_log);
+            break;
 
-        if (main_screen_count >= MENU_SCREEN_LIST)
-            main_screen_count = 1;
-        else
-            main_screen_count++;
+        default: // Set the main screen counter to zero
+            main_screen_count = 0;
+            break;
+        }
+        main_screen_count++;
     }
+
+    //? Polls NRF24 to collect live data from boxes
+    // if (digitalRead(NRF24_IRQ) == LOW)
+    // {
+    //     Serial.println("Message recieved on NRF");
+    //     String box_id = read_radio();
+    //     if (box_id.length() < BOX_ID_LENGTH)
+    //     {
+    //         String str_box_address = fetch_box_address(box_id);
+    //         byte box_address[COMMUNICATION_ID_LENGTH];
+    //         for (size_t i = 0; i < count; i++)
+    //             box_address[i] = str_box_address[i];
+    //         update_box_data(box_id, box_address);
+    //     }
+    //     set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
+    // }
 }

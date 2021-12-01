@@ -32,7 +32,7 @@
 #define GPIO17 17
 #define GPIO16 16
 #define NRF24_CE 4
-#define GPIO2 2
+#define NRF24_IRQ 2
 #define SD_CS 15
 #define GPIO34 34
 #define GPIO35 35
