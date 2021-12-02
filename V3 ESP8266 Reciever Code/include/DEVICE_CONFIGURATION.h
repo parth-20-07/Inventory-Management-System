@@ -18,7 +18,7 @@ int connected_boxes = 0;
 //! Main Screen Configuration
 #define MENU_SCREEN_LIST 6            // Number of main menu items
 #define MAIN_SCREEN_REFRESH_TIME 2000 // Time for main screen refresh in ms
-#define ERROR_LOG_LENGTH 9            // [HH:MM XXX] 9 digit Error Code
+#define ERROR_LOG_LENGTH 10           // [HH:MM #XXX] 10 digit Error Code
 
 //! Soft AP Setup
 IPAddress local_IP(192, 168, 4, 22);
