@@ -238,7 +238,7 @@ void appendFile(fs::FS &fs, const char *path, const char *message);
 void read_rotary_encoder(void);
 void add_new_box(String box_id, String dt);
 void calibrate_box(String box_id, byte *ptr_box_address);
-void update_box_data(String box_id, byte *ptr_box_address);
+void update_box_data(String box_id, byte *ptr_box_address, String required_params);
 void change_box_setting(String box_id, byte *ptr_box_address, String dt, String st, String bt);
 void sound_buzzer(String box_id, byte *ptr_box_address);
 void write_radio(byte *ptr_transmission_address, String transmission_message);
@@ -1261,8 +1261,7 @@ void add_new_box(String box_id, String dt)
         delay(1000);
     }
 
-    // Uploading the data in AWS
-    if (!client.connected())
+    if (!client.connected()) // Uploading the data in AWS
         checkWiFiThenMQTT();
     else
     {
@@ -1387,11 +1386,24 @@ void calibrate_box(String box_id, byte *ptr_box_address)
  * @param box_id
  * @param box_address
  */
-void update_box_data(String box_id, byte *ptr_box_address)
+void update_box_data(String box_id, byte *ptr_box_address, String required_params)
 {
+    char token = '/';
+    char params[UPDATE_PARAMETERS];
+    int j = 0;
+    int recieved_params = sizeof(required_params) / sizeof(required_params[0]);
+    for (int i = 0; i < recieved_params; i++)
+    {
+        if (required_params[i] != token)
+            params[j] = required_params[i];
+        else
+            j++;
+    }
 
     // Write radio with the address recieved
-    String write_message = "updt";
+    String write_message = "updt,";
+    for (size_t i = 0; i < recieved_params; i++)
+        write_message += {(String)params[i] + ','};
     write_radio(ptr_box_address, write_message);
 
     // Read the radio
@@ -1411,9 +1423,32 @@ void update_box_data(String box_id, byte *ptr_box_address)
     }
 
     if (message != "")
-    { // Correct format: "<count>,<temperature>,<battery>,<offset>,<average_wesight>"
+    {
+        // Seperating each recieved parameter values
+        char token = ',';
+        int j = 0;
+        int k = 0;
+        char param_values[recieved_params][10];
+        for (int i = 0; i < recieved_params; i++)
+        {
+            if (message[i] != token)
+            {
+                param_values[j][k] = message[i];
+                k++;
+            }
+            else
+            {
+                j++;
+                k = 0;
+            }
+        }
 
-        String str_sd_message = hour + '/' + minutes + '/' + seconds + box_id + message;
+        // Joining Parameter values to Parameter Character
+        String formatted_params = "";
+        for (size_t i = 0; i < recieved_params; i++)
+            formatted_params += (String)params[i] + ':' + (String)param_values[i];
+
+        String str_sd_message = hour + ':' + minutes + ':' + seconds + ' ' + box_id + ' ' + formatted_params;
         int msg_size = str_sd_message.length(); // Calculating the message size
         char sd_message[msg_size];              // Str to Char conversion
         for (int i = 0; i < msg_size; i++)
@@ -1442,7 +1477,7 @@ void update_box_data(String box_id, byte *ptr_box_address)
             else
             {
                 client.loop();
-                sendData(box_id, message);
+                sendData(box_id, formatted_params);
             }
         }
         else
@@ -1466,7 +1501,7 @@ void change_box_setting(String box_id, byte *ptr_box_address, String dt, String 
     delay(1000);
     int success_code = 0;
 
-    String message = "chng," + dt + st + bt;
+    String message = "chng," + dt + ',' + st + ',' + bt;
     write_radio(ptr_box_address, message);
 
     set_radio_in_read_mode(ptr_box_address);
@@ -1602,7 +1637,7 @@ void regular_box_update(int counter)
                 box_address[i] = address[i];
 
             update_oled("Contacting", "Box", box_id);
-            update_box_data(box_id, box_address);
+            update_box_data(box_id, box_address, "c");
         }
     }
 
@@ -1789,10 +1824,11 @@ void messageReceived(String &topic, String &payload)
             calibrate_box(box_id, box_address);
         else if (cmd == "ask") // Ask box for updated values
         {
+            String required_params = doc["identifier"];
             rtc_get_time();
             solid_rgb_ring(YELLOW_COLOR);
             update_oled("Update", "Box", "Progress");
-            update_box_data(box_id, box_address);
+            update_box_data(box_id, box_address, required_params);
             solid_rgb_ring(GREEN_COLOR);
             update_oled("Update", "Box", "Successful");
         }
@@ -2032,6 +2068,7 @@ void send_Success_Data(String box_id, String command, int success_status, String
     //   "success": 1,
     //   "param1": "param1_data",
     //   "param2": "param2_data",
+    //   "param3": "param3_data",
     // }
     char shadow[measureJson(doc) + 1];
     serializeJson(doc, shadow, sizeof(shadow));
@@ -2053,36 +2090,43 @@ void send_Success_Data(String box_id, String command, int success_status, String
 void sendData(String box_id, String message)
 {
     // Reference:https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonGeneratorExample/JsonGeneratorExample.ino
-    char token = ',';
-    char params[UPDATE_PARAMETERS][10] = {
-        {/*Count*/},
-        {/*Temperature*/},
-        {/*Battery Percentage*/},
-        {/*Offset*/},
-        {/*Average Weight of item measured*/}};
 
+    // Seperating the comma seperated values from message in format "<param_letter>:<param_value>"
+    char token = ',';
+    char formatted_params[UPDATE_PARAMETERS][12];
     int j = 0;
+    int k = 0;
     for (int i = 0; i < (sizeof(message) / message[0]); i++)
     {
         if (message[i] != token)
-            params[j][i % 10] = message[i];
+        {
+            formatted_params[j][k] = message[i];
+            k++;
+        }
         else
+        {
             j++;
+            k = 0;
+        }
     }
-    String c = (String)params[0]; // Count
-    String t = (String)params[1]; // Temperature
-    String b = (String)params[2]; // Battery
-    String o = (String)params[3]; // Offset
-    String a = (String)params[4]; // Average Weight
 
+    // Seperating the colon seperated value and identifier and storing it in different arrays
+    char params[j + 1]; // j signifies the number of recieved params
+    char param_values[j + 1][10];
+    for (size_t i = 0; i < (j + 1); i++)
+    {
+        params[i] = formatted_params[i][0]; // Saving the param identifier in params matrix
+        for (size_t k = 2; k < (sizeof(formatted_params[j]) / sizeof(formatted_params[j][0])); k++)
+            param_values[i][k - 2] = formatted_params[i][k];
+    }
+
+    // Converting the data into JSON Format
     StaticJsonDocument<50> doc;
     doc["time"] = (char)year + '/' + (char)month + '/' + (char)date + ' ' + (char)hour + ':' + (char)minutes + ':' + (char)seconds;
-    doc["cmd"] = "ask";
-    doc["c"] = c;
-    doc["t"] = t;
-    doc["b"] = b;
-    doc["o"] = o;
-    doc["a"] = a;
+    doc["Box ID"] = box_id;
+    doc["cmd"] = "update";
+    for (size_t i = 0; i < (j + 1); i++)
+        doc[(String)params[i]] = (String)param_values[i];
     serializeJson(doc, Serial);
     serializeJsonPretty(doc, Serial);
     // The above line prints:
@@ -2132,6 +2176,7 @@ void setup()
     timerAlarmEnable(timer);
     print_company_logo();
     lastMillis = millis();
+    set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
 }
 
 // TODO: Loop for the code
@@ -2238,21 +2283,28 @@ void loop()
             break;
         }
         main_screen_count++;
+        solid_rgb_ring(BLUE_COLOR);
+        set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
     }
 
     //? Polls NRF24 to collect live data from boxes
-    // if (digitalRead(NRF24_IRQ) == LOW)
-    // {
-    //     Serial.println("Message recieved on NRF");
-    //     String box_id = read_radio();
-    //     if (box_id.length() < BOX_ID_LENGTH)
-    //     {
-    //         String str_box_address = fetch_box_address(box_id);
-    //         byte box_address[COMMUNICATION_ID_LENGTH];
-    //         for (size_t i = 0; i < count; i++)
-    //             box_address[i] = str_box_address[i];
-    //         update_box_data(box_id, box_address);
-    //     }
-    //     set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
-    // }
+    if (digitalRead(NRF24_IRQ) == LOW)
+    {
+        Serial.println("Message recieved on NRF");
+        String box_id = read_radio();
+        if (box_id.length() < BOX_ID_LENGTH)
+        {
+            String str_box_address = fetch_box_address(box_id);
+            byte box_address[COMMUNICATION_ID_LENGTH];
+            for (size_t i = 0; i < count; i++)
+                box_address[i] = str_box_address[i];
+            write_radio(box_address, "send_param_id");
+            set_radio_in_read_mode(box_address);
+            while (digitalRead(NRF24_IRQ) == HIGH)
+                ;
+            String recieved_params = read_radio();
+            update_box_data(box_id, box_address, recieved_params);
+        }
+        set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
+    }
 }
