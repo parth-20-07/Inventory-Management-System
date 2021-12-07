@@ -2,11 +2,10 @@
 #define DEVICE_CONFIGURATION_H
 
 //! Device Configuration
-#define LED_BRIGHTNESS 100 // Brightness percentage of the LED Ring
-
+#define LED_BRIGHTNESS 100         // Brightness percentage of the LED Ring
+#define PERIODIC_UPDATE_VALUES "c" // What to ask the boxes on periodic intervals
 //! WebURL Configuration
 String contact_us_link = "bit.ly/3nIlHXx";
-String add_wifi_link = "Add Wifi";
 
 //! Box Configuration
 #define BOX_ID_LENGTH 9           // Length of the Box ID

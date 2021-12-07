@@ -1643,7 +1643,7 @@ void reciever_initiated_call()
             for (size_t i = 0; i < count; i++)
                 box_address[i] = str_box_address[i];
             if (param == "updt")
-                update_box_data(box_id, box_address, "c");
+                update_box_data(box_id, box_address, PERIODIC_UPDATE_VALUES);
             else if (param == "cali")
                 calibrate_box(box_id, box_address);
         }
@@ -1718,7 +1718,7 @@ void regular_box_update(int counter)
                 box_address[i] = address[i];
 
             update_oled("Contacting", "Box", box_id);
-            update_box_data(box_id, box_address, "c");
+            update_box_data(box_id, box_address, PERIODIC_UPDATE_VALUES);
         }
     }
 
