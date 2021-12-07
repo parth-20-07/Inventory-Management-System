@@ -1616,7 +1616,23 @@ void sound_buzzer(String box_id, byte *ptr_box_address)
 void reciever_initiated_call()
 {
     Serial.println("Box Initiated Communication on NRF");
-    String box_id = read_radio();
+    String msg = read_radio();
+    char char_msg[2][BOX_ID_LENGTH];
+    int j = 0;
+    int seperation = 0;
+    for (size_t i = 0; i < msg.length(); i++)
+    {
+        if (msg[i] != ',')
+            char_msg[j][i - seperation] = msg[i];
+        else
+        {
+            j++;
+            seperation++;
+        }
+    }
+    String box_id = (String)char_msg[0];
+    String param = (String)char_msg[1];
+
     if (box_id.length() == BOX_ID_LENGTH) // Checks if the box initiated contact by sending its box id
     {
         String str_box_address = "";
@@ -1626,32 +1642,10 @@ void reciever_initiated_call()
             byte box_address[COMMUNICATION_ID_LENGTH];
             for (size_t i = 0; i < count; i++)
                 box_address[i] = str_box_address[i];
-            write_radio(box_address, "send_command_id");
-
-            set_radio_in_read_mode(box_address);
-
-            int i = 0;
-            String call_parameter = "";
-            int max_attempts = 50;
-            while (i < max_attempts)
-            {
-                if (radio.available())
-                {
-                    call_parameter = read_radio();
-                    break;
-                }
-                delay(100);
-                i++;
-            }
-
-            if (call_parameter != "")
-            {
-                String call_parameter = read_radio();
-                if (call_parameter == "updt")
-                    update_box_data(box_id, box_address, "c");
-                else if (call_parameter == "cali")
-                    calibrate_box(box_id, box_address);
-            }
+            if (param == "updt")
+                update_box_data(box_id, box_address, "c");
+            else if (param == "cali")
+                calibrate_box(box_id, box_address);
         }
     }
     set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
