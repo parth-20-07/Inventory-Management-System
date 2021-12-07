@@ -108,7 +108,7 @@ char alphabet[AVAILABLE_CHARACTERS] = {
 
 byte BROADCAST_RECIEVER_ADDRESS[COMMUNICATION_ID_LENGTH] = "boxit";
 String BOX_DETAILS[MAX_BOXES][2];
-int BOX_DT_TIME_DETAILS[MAX_BOXES][1];
+int BOX_DT_TIME_DETAILS[MAX_BOXES];
 
 //! SD Card Setup
 // Reference (SD Card Module): https://randomnerdtutorials.com/esp32-microsd-card-arduino/
@@ -306,7 +306,6 @@ void pin_setup(void)
     pinMode(outputA, INPUT);
     pinMode(outputB, INPUT);
     pinMode(outputS, INPUT);
-    pinMode(NRF24_IRQ, INPUT);
     return;
 }
 
@@ -736,8 +735,8 @@ void connect_to_new_wifi(void)
                     inputMessage = request->getParam(PARAM_INPUT_1)->value();
                     inputParam = PARAM_INPUT_1;
                     deleteFile(SD, SSID_FILE);
-                    for (size_t i = 0; i < inputMessage.length(); i++)
-                        ssid[i] = inputMessage[i];
+                    int n = inputMessage.length();
+                    strcpy(ssid, inputMessage.c_str());
                     writeFile(SD, SSID_FILE, ssid);
                     Serial.println((String)ssid);
                     }
@@ -747,8 +746,8 @@ void connect_to_new_wifi(void)
                     inputMessage = request->getParam(PARAM_INPUT_2)->value();
                     inputParam = PARAM_INPUT_2;
                     deleteFile(SD, PASSWORD_FILE);
-                    for (size_t i = 0; i < inputMessage.length(); i++)
-                        password[i] = inputMessage[i];
+                    int n = inputMessage.length();
+                    strcpy(password, inputMessage.c_str());
                     writeFile(SD, PASSWORD_FILE, password);
                     Serial.println((String)password);
                 }
@@ -1286,9 +1285,9 @@ void add_new_box(String box_id, String dt)
     int i = 0;
     String recieved_message = "";
     int max_attempts = 50;
-    while (i < max_attempts)
+    while ((i < max_attempts))
     {
-        if (digitalRead(NRF24_IRQ) == LOW)
+        if (radio.available())
         {
             recieved_message = read_radio();
             break;
@@ -1310,17 +1309,9 @@ void add_new_box(String box_id, String dt)
         EEPROM.commit();
 
         // Creating char array where the data in format<box_id><box_communication_address> is saved
-        char sd_message[BOX_ID_LENGTH + COMMUNICATION_ID_LENGTH + dt.length()];
-        for (int i = 0; i < (BOX_ID_LENGTH + COMMUNICATION_ID_LENGTH + dt.length()); i++)
-        {
-            if (i < BOX_ID_LENGTH)
-                sd_message[i] = box_id[i];
-            else if (i < COMMUNICATION_ID_LENGTH)
-                sd_message[i] = save_sd_address[i - BOX_ID_LENGTH];
-            else
-                sd_message[i] = dt[i];
-        }
-
+        int n = BOX_ID_LENGTH + COMMUNICATION_ID_LENGTH + dt.length();
+        char sd_message[n];
+        strcpy(sd_message, (box_id + (String)save_sd_address + dt).c_str());
         appendFile(SD, BOX_ID_DETAILS_FILE, sd_message); // Appending the char array in SD Card
         read_box_details_from_sd_card();                 // Updating the box data and saving the new box in Box ID Array
         solid_rgb_ring(GREEN_COLOR);
@@ -1376,7 +1367,7 @@ void calibrate_box(String box_id, byte *ptr_box_address)
     int max_attempts = 50;
     while (i < max_attempts)
     {
-        if (digitalRead(NRF24_IRQ) == LOW)
+        if (radio.available())
         {
             recieved_message = read_radio();
             break;
@@ -1420,7 +1411,7 @@ void calibrate_box(String box_id, byte *ptr_box_address)
         int max_attempts = 50;
         while (i < max_attempts)
         {
-            if (digitalRead(NRF24_IRQ) == LOW)
+            if (radio.available())
             {
                 update_message = read_radio();
                 break;
@@ -1487,7 +1478,7 @@ void update_box_data(String box_id, byte *ptr_box_address, String required_param
     int max_attempts = 50;
     while (i < max_attempts)
     {
-        if (digitalRead(NRF24_IRQ) == LOW)
+        if (radio.available())
         {
             message = read_radio();
             break;
@@ -1501,23 +1492,20 @@ void update_box_data(String box_id, byte *ptr_box_address, String required_param
         String str_sd_message = hour + ':' + minutes + ':' + seconds + ' ' + box_id + ' ' + message;
         int msg_size = str_sd_message.length(); // Calculating the message size
         char sd_message[msg_size];              // Str to Char conversion
-        for (int i = 0; i < msg_size; i++)
-            sd_message[i] = str_sd_message[i];
+        strcpy(sd_message, str_sd_message.c_str());
 
         // Creating Directory of Format YYYY/MM/
         String str_dir = '/' + (String)year + '/' + (String)month;
         int dir_size = str_dir.length();
         char dir[dir_size]; // Str to Char conversion
-        for (int i = 0; i < dir_size; i++)
-            dir[i] = str_dir[i];
+        strcpy(dir, str_dir.c_str());
         createDir(SD, dir);
 
         // Creating File Path
         String str_file_path = '/' + (String)year + '/' + (String)month + '/' + (String)date + file_extension;
         int path_size = str_file_path.length();
         char file_path[path_size]; // Str to Char conversion
-        for (int i = 0; i < path_size; i++)
-            file_path[i] = str_file_path[i];
+        strcpy(file_path, str_file_path.c_str());
         appendFile(SD, file_path, sd_message);
 
         if (wifi_connection_status == 1)
@@ -1574,7 +1562,7 @@ void change_box_setting(String box_id, byte *ptr_box_address, String identifiers
     int max_attempts = 50;
     while (i < max_attempts)
     {
-        if (digitalRead(NRF24_IRQ) == LOW)
+        if (radio.available())
         {
             recieved_message = read_radio();
             break;
@@ -1647,7 +1635,7 @@ void reciever_initiated_call()
             int max_attempts = 50;
             while (i < max_attempts)
             {
-                if (digitalRead(NRF24_IRQ) == LOW)
+                if (radio.available())
                 {
                     call_parameter = read_radio();
                     break;
@@ -1700,16 +1688,10 @@ void set_radio_in_read_mode(byte ptr_recieving_address[])
 
 String read_radio(void)
 {
-    update_oled("Recieving", "Message", "via NRF");
+    update_oled("Recieved", "Message", "via NRF");
     delay(1000);
     String recieved_message = "";
-    if (radio.available())
-    {
-        update_oled("Recieved", "Message", "via NRF");
-        radio.read(&recieved_message, sizeof(recieved_message));
-    }
-    else
-        update_oled("Failed", "Message", "via NRF");
+    radio.read(&recieved_message, sizeof(recieved_message));
     return recieved_message;
 }
 
@@ -1730,12 +1712,7 @@ void regular_box_update(int counter)
     for (int i = 0; i < connected_boxes; i++)
     {
         halt_rgb_ring(i);
-
-        String str_delay_time = BOX_DETAILS[i][2];
-        char char_delay_time[2];
-        for (int i = 0; i < 2; i++)
-            char_delay_time[i] = str_delay_time[i];
-        int dt = atoi(char_delay_time);
+        int dt = BOX_DT_TIME_DETAILS[i];
         Serial.println("dt: " + (String)dt);
 
         if (counter % (dt * 60) == 0)
@@ -1773,9 +1750,7 @@ String fetch_box_address(String box_id)
     {
         String box = BOX_DETAILS[i][0];
         if (box == box_id)
-        {
             break;
-        }
     }
     String address = BOX_DETAILS[i][1];
     return address;
@@ -1807,7 +1782,7 @@ void handleEachLine(char line[], int lineIndex)
 {
     char box_id[BOX_ID_LENGTH];
     char address[COMMUNICATION_ID_LENGTH];
-    char dt[2];
+    char delay_time[2];
 
     for (int i = 0; i < (BOX_ID_LENGTH + COMMUNICATION_ID_LENGTH + 2); i++)
     {
@@ -1821,13 +1796,13 @@ void handleEachLine(char line[], int lineIndex)
         }
         else
         {
-            dt[i - BOX_ID_LENGTH - COMMUNICATION_ID_LENGTH] = line[i];
+            delay_time[i - BOX_ID_LENGTH - COMMUNICATION_ID_LENGTH] = line[i];
         }
     }
 
     BOX_DETAILS[lineIndex][0] = (String)box_id;
     BOX_DETAILS[lineIndex][1] = (String)address;
-    BOX_DETAILS[lineIndex][2] = (String)dt;
+    BOX_DT_TIME_DETAILS[lineIndex] = atoi(delay_time);
     Serial.println("Box ID: " + BOX_DETAILS[lineIndex][0] + '\n' + "Box Address: " + BOX_DETAILS[lineIndex][1] + '\n' + "Delay Time: " + BOX_DETAILS[lineIndex][2]);
     return;
 }
@@ -1841,13 +1816,7 @@ void handleEachLine(char line[], int lineIndex)
 void handleEachErrorLine(char line[], int lineIndex)
 {
     char error_log[ERROR_LOG_LENGTH];
-
-    for (int i = 0; i < ERROR_LOG_LENGTH; i++)
-    {
-        error_log[i] = line[i];
-    }
-
-    latest_error_log = (String)error_log;
+    latest_error_log = (String)line;
     return;
 }
 
@@ -1886,9 +1855,7 @@ void write_error_log(String error_log_tag)
     String str_error_log = (String)hour + ':' + (String)minutes + ' ' + error_log_tag;
     latest_error_log = str_error_log;
     char error_log[ERROR_LOG_LENGTH];
-    for (int i = 0; i < ERROR_LOG_LENGTH; i++)
-        error_log[i] = str_error_log[i];
-
+    strcpy(error_log, latest_error_log.c_str());
     writeFile(SD, ERROR_LOG_FILE, error_log);
 }
 
@@ -2293,20 +2260,20 @@ void setup()
     rgb_ring_setup(110);
     oled_setup();
     nrf24_setup();
-    // sd_setup();
-    // wifi_ntp_setup();
-    // aws_setup();
-    // read_box_details_from_sd_card();
-    // RL.readLines(ERROR_LOG_FILE, &handleEachErrorLine);
-    // if (BOX_DETAILS[0][0] == NULL)
-    // {
-    //     solid_rgb_ring(RED_COLOR);
-    //     update_oled("No", "Box", "Linked");
-    //     Serial.println("No Box Linked");
-    //     while (BOX_DETAILS[0][0] == NULL)
-    //     {
-    //     }
-    // }
+    sd_setup();
+    wifi_ntp_setup();
+    aws_setup();
+    read_box_details_from_sd_card();
+    RL.readLines(ERROR_LOG_FILE, &handleEachErrorLine);
+    if (BOX_DETAILS[0][0] == NULL)
+    {
+        solid_rgb_ring(RED_COLOR);
+        update_oled("No", "Box", "Linked");
+        Serial.println("No Box Linked");
+        while (BOX_DETAILS[0][0] == NULL)
+        {
+        }
+    }
     configure_timer();
     timerAlarmEnable(timer);
     print_company_logo();
@@ -2318,12 +2285,12 @@ void setup()
 void loop()
 {
     // //? Detects when the rotary encoder button is pressed
-    // if (digitalRead(outputS) == HIGH)
-    // {
-    //     delay(3 * DEBOUNCE_TIME); // Debounce time
-    //     if (digitalRead(outputS) == HIGH)
-    //         read_rotary_encoder(); // Open Main Menu
-    // }
+    if (digitalRead(outputS) == HIGH)
+    {
+        delay(3 * DEBOUNCE_TIME); // Debounce time
+        if (digitalRead(outputS) == HIGH)
+            read_rotary_encoder(); // Open Main Menu
+    }
 
     //? When Count variable overflows the Timer Value, the periodic box polling is done
     if ((count != 0) && ((count % 5) == 0))
@@ -2339,10 +2306,10 @@ void loop()
     }
 
     // //? Main Splash Screen Cycle
-    // if ((millis() - lastMillis) > MAIN_SCREEN_REFRESH_TIME)
-    //     update_splash_screen();
+    if ((millis() - lastMillis) > MAIN_SCREEN_REFRESH_TIME)
+        update_splash_screen();
 
     // //? Polls NRF24 to collect live data from boxes
-    // if (digitalRead(NRF24_IRQ) == LOW)
-    //     reciever_initiated_call();
+    if (radio.available())
+        reciever_initiated_call();
 }
