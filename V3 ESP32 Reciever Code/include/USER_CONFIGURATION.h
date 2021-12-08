@@ -20,8 +20,11 @@ int PORT = 443;
 
 // MQTT Details
 const int MQTT_PORT = 8883;
-const char MQTT_SUB_TOPIC[] = "aws/command22/123456789";
-const char MQTT_PUB_TOPIC[] = "$aws/rules/123456789/aws/tel/123456789";
+// const char MQTT_SUB_TOPIC[] = "aws/command22/123456789";
+// const char MQTT_PUB_TOPIC[] = "aws/command22/123456789"; // TODO: Delete this part later on
+const char MQTT_SUB_TOPIC[] = "987654321";
+const char MQTT_PUB_TOPIC[] = "123456789"; // TODO: Delete this part later on
+// const char MQTT_PUB_TOPIC[] = "$aws/rules/123456789/aws/tel/123456789";//TODO: Uncomment this part of code later on
 const char MQTT_HOST[] = "auu7lvgox59ol-ats.iot.ap-south-1.amazonaws.com";
 
 // Copy contents from XXXXXXXX-public.pem.key here ▼

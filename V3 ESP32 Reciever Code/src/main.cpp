@@ -171,8 +171,8 @@ Adafruit_NeoPixel pixels(NUMPIXELS, RGB_D1, NEO_GRB + NEO_KHZ800);
 #include <WiFiClientSecure.h>
 #include <MQTT.h>
 #include <ArduinoJson.h>
-WiFiClientSecure net;
-MQTTClient client;
+WiFiClientSecure net = WiFiClientSecure();
+MQTTClient client = MQTTClient(256);
 
 //! Setting Up Timers
 /**
@@ -477,12 +477,28 @@ void aws_setup(void)
         Serial.println("Setting up AWS Connection");
         update_oled("AWS", "Setup", "Progress");
         delay(1000);
+
+        // Connecting to Wi-Fi
+        Serial.println("Connecting to Wi-Fi");
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(ssid, password);
+        while (WiFi.status() != WL_CONNECTED)
+        {
+            delay(50);
+            Serial.print(".");
+        }
+        Serial.println("WI-Fi Connected");
+
+        // Configure WiFiClientSecure to use the AWS IoT device credentials
         net.setCACert(cacert);
         net.setCertificate(client_cert);
         net.setPrivateKey(privkey);
-        client.begin(MQTT_HOST, MQTT_PORT, net);
-        client.onMessage(messageReceived);
+
+        client.begin(MQTT_HOST, MQTT_PORT, net); // Connect to the MQTT broker on the AWS endpoint we defined earlier
+        client.onMessage(messageReceived);       // Create a message handler
+
         connectToMqtt(false);
+        read_aws_backlog_file(); // Upload the backlog data if any
         solid_rgb_ring(GREEN_COLOR);
         Serial.println("AWS Setup Complete");
         update_oled("AWS", "Setup", "Complete");
@@ -1786,6 +1802,7 @@ void read_box_details_from_sd_card(void)
 {
     solid_rgb_ring(YELLOW_COLOR);
     update_oled("Read", "Box Details", "From SD");
+    Serial.println("Reading Box Details");
     delay(1000);
     RL.readLines(BOX_ID_DETAILS_FILE, &handleEachLine);
     solid_rgb_ring(GREEN_COLOR);
@@ -1898,7 +1915,7 @@ void messageReceived(String &topic, String &payload)
     update_oled("Message", "Recieved", "from AWS");
     delay(1000);
     Serial.println("Recieved [" + topic + "]: " + payload);
-    StaticJsonDocument<50> doc;
+    StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, payload);
     if (error)
     {
@@ -1953,6 +1970,7 @@ void messageReceived(String &topic, String &payload)
 
 void read_aws_backlog_file()
 {
+    Serial.println("Reading Backlog Files");
     RL.readLines(BOX_ID_DETAILS_FILE, &handleEachAWSBacklogLine);
     deleteFile(SD, AWS_BACKLOG_FILE);
 }
@@ -2169,7 +2187,7 @@ void send_Success_Data(String box_id, String command, int success_status, String
     // Reference (String to JSON Converter):https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonGeneratorExample/JsonGeneratorExample.ino
     solid_rgb_ring(YELLOW_COLOR);
     update_oled("AWS", "Upload", "InProgess");
-    StaticJsonDocument<50> doc;
+    StaticJsonDocument<200> doc;
     doc["boxid"] = box_id;
     doc["cmd"] = command;
     doc["success"] = success_status;
@@ -2244,6 +2262,7 @@ void sendData(String box_id, String message, String date_time)
     // Reference:https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonGeneratorExample/JsonGeneratorExample.ino
 
     // Seperating the comma seperated values from message in format "<param_letter>:<param_value>"
+    Serial.println("Sending to AWS");
     char token = ',';
     char formatted_params[UPDATE_PARAMETERS][12];
     int j = 0;
@@ -2273,7 +2292,7 @@ void sendData(String box_id, String message, String date_time)
     }
 
     // Converting the data into JSON Format
-    StaticJsonDocument<50> doc;
+    StaticJsonDocument<200> doc;
     if (date_time == "na")
         doc["time"] = (String)year + '/' + (String)month + '/' + (String)date + ' ' + (String)hour + ':' + (String)minutes + ':' + (String)seconds;
     else
@@ -2318,22 +2337,25 @@ void setup()
     aws_setup();
     read_box_details_from_sd_card();
     RL.readLines(ERROR_LOG_FILE, &handleEachErrorLine);
-    if (BOX_DETAILS[0][0] == NULL)
-    {
-        solid_rgb_ring(RED_COLOR);
-        if (wifi_connection_status == 0)
-        {
-            update_oled("Device", "Not", "Connected");
-            delay(1000);
-            connect_to_new_wifi();
-        }
-        update_oled("No", "Box", "Linked");
-        Serial.println("No Box Linked");
-        while (BOX_DETAILS[0][0] == NULL)
-            client.onMessage(messageReceived);
-    }
-    configure_timer();
-    timerAlarmEnable(timer);
+    // if (BOX_DETAILS[0][0] == NULL)
+    // {
+    //     solid_rgb_ring(RED_COLOR);
+    //     if (wifi_connection_status == 0)
+    //     {
+    //         update_oled("Device", "Not", "Connected");
+    //         delay(1000);
+    //         connect_to_new_wifi();
+    //     }
+    //     update_oled("No", "Box", "Linked");
+    //     Serial.println("No Box Linked");
+    //     while (BOX_DETAILS[0][0] == NULL)
+    //     {
+    //         Serial.println("reading");
+    // client.loop();
+    //     }
+    // }
+    // configure_timer();
+    // timerAlarmEnable(timer);
     print_company_logo();
     lastMillis = millis();
     set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
@@ -2372,5 +2394,7 @@ void loop()
         reciever_initiated_call();
 
     //? Polling AWS for recieved data
-    client.onMessage(messageReceived);
+    sendData("123456789", "c:5,b:10,t:15", "na");
+    client.loop();
+    delay(5000);
 }
