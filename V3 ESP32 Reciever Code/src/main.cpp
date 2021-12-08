@@ -117,7 +117,6 @@ int BOX_DT_TIME_DETAILS[MAX_BOXES];
 #include "SD.h"
 #include <ReadLines.h>
 const char AWS_BACKLOG_FILE[] = "/AWS_Backlog_file.txt";
-const char NRF_COMMUNICATION_ADDRESS_FILE[] = "/NRF_Communication_file.txt";
 char BOX_ID_DETAILS_FILE[] = "/Box_ID_Details.txt";
 char ERROR_LOG_FILE[] = "/Error_Log.txt";
 char SSID_FILE[] = "/SSID.txt";
@@ -219,12 +218,15 @@ void nrf24_setup(void);
 void rtc_setup(void);
 void oled_setup(void);
 void sd_setup(void);
-void rgb_ring_setup(int led_brightness = 110);
+void rgb_ring_setup(int led_brightness);
 void aws_setup(void);
 void print_company_logo(void);
 void update_oled(String text1, String text2, String text3);
 void oled_menu_update(String item1, String item2, String item3);
+void update_splash_screen(void);
 void printLocalTime(void);
+void notFound(AsyncWebServerRequest *request);
+void connect_to_new_wifi(void);
 void rtc_get_time(void);
 void solid_rgb_ring(uint32_t color);
 void halt_rgb_ring(int led_number);
@@ -241,6 +243,7 @@ void calibrate_box(String box_id, byte *ptr_box_address);
 void update_box_data(String box_id, byte *ptr_box_address, String required_params);
 void change_box_setting(String box_id, byte *ptr_box_address, String identifiers);
 void sound_buzzer(String box_id, byte *ptr_box_address);
+void reciever_initiated_call();
 void write_radio(byte ptr_transmission_address[], String transmission_message);
 void set_radio_in_read_mode(byte ptr_recieving_address[]);
 String read_radio(void);
@@ -253,16 +256,16 @@ void handleEachSSIDLine(char line[], int lineIndex);
 void handleEachPasswordLine(char line[], int lineIndex);
 void write_error_log(String error_log_tag);
 void messageReceived(String &topic, String &payload);
+void read_aws_backlog_file();
+void handleEachAWSBacklogLine(char line[], int lineIndex);
 void lwMQTTErr(lwmqtt_err_t reason);
 void lwMQTTErrConnection(lwmqtt_return_code_t reason);
 void connectToMqtt(bool nonBlocking);
-void connectToWiFi(String init_str);
 void checkWiFiThenMQTT(void);
 void checkWiFiThenMQTTNonBlocking(void);
 void checkWiFiThenReboot(void);
 void send_Success_Data(String box_id, String command, int success_status, String param1, String param2, String param3);
-void sendData(String box_id, String message);
-void connect_to_new_wifi(void);
+void sendData(String box_id, String message, String date_time);
 
 //! Function Declaration
 
@@ -763,9 +766,10 @@ void connect_to_new_wifi(void)
     {
         if (digitalRead(outputS) == HIGH)
         {
-            Serial.println("Breaking Add New Wi-Fi Loop");
-            update_oled("Returning", "To", "Main Menu");
-            delay(1000);
+            Serial.println("Restarting Device");
+            update_oled("Restarting", "Device", "");
+            delay(3000);
+            ESP.restart();
             break;
         }
         if (i < 100)
@@ -1423,6 +1427,38 @@ void calibrate_box(String box_id, byte *ptr_box_address)
             solid_rgb_ring(GREEN_COLOR);
             update_oled("Calibration", "Successful", box_id);
             delay(1000);
+            // Creating Directory of Format YYYY/MM/
+            String str_dir = '/' + (String)year + '/' + (String)month;
+            int dir_size = str_dir.length();
+            char dir[dir_size]; // Str to Char conversion
+            strcpy(dir, str_dir.c_str());
+            createDir(SD, dir);
+
+            // Creating File Path
+            String str_file_path = '/' + (String)year + '/' + (String)month + '/' + (String)date + file_extension;
+            int path_size = str_file_path.length();
+            char file_path[path_size]; // Str to Char conversion
+            strcpy(file_path, str_file_path.c_str());
+
+            // Converting data into required format
+            String str_sd_message = year + '/' + month + '/' + date + ' ' + hour + ':' + minutes + ':' + seconds + ' ' + box_id + ' ' + update_message;
+            int msg_size = str_sd_message.length(); // Calculating the message size
+            char sd_message[msg_size];              // Str to Char conversion
+            strcpy(sd_message, str_sd_message.c_str());
+            appendFile(SD, file_path, sd_message);
+
+            if (wifi_connection_status == 1)
+            {
+                if (!client.connected())
+                    checkWiFiThenMQTT();
+                else
+                {
+                    client.loop();
+                    send_Success_Data((String)box_id, "calibration_update", connection_status, update_message, "", "");
+                }
+            }
+            else
+                appendFile(SD, AWS_BACKLOG_FILE, sd_message);
         }
         else
         {
@@ -1430,14 +1466,6 @@ void calibrate_box(String box_id, byte *ptr_box_address)
             solid_rgb_ring(RED_COLOR);
             update_oled("Calibration", "Failed", box_id);
             delay(1000);
-        }
-
-        if (!client.connected())
-            checkWiFiThenMQTT();
-        else
-        {
-            client.loop();
-            send_Success_Data((String)box_id, "calibration_update", connection_status, update_message, "", "");
         }
     }
     return;
@@ -1487,11 +1515,6 @@ void update_box_data(String box_id, byte *ptr_box_address, String required_param
 
     if (message != "")
     {
-        String str_sd_message = hour + ':' + minutes + ':' + seconds + ' ' + box_id + ' ' + message;
-        int msg_size = str_sd_message.length(); // Calculating the message size
-        char sd_message[msg_size];              // Str to Char conversion
-        strcpy(sd_message, str_sd_message.c_str());
-
         // Creating Directory of Format YYYY/MM/
         String str_dir = '/' + (String)year + '/' + (String)month;
         int dir_size = str_dir.length();
@@ -1504,6 +1527,13 @@ void update_box_data(String box_id, byte *ptr_box_address, String required_param
         int path_size = str_file_path.length();
         char file_path[path_size]; // Str to Char conversion
         strcpy(file_path, str_file_path.c_str());
+
+        // Converting data into required format
+        String str_sd_message = year + '/' + month + '/' + date + ' ' + hour + ':' + minutes + ':' + seconds + ' ' + box_id + ' ' + message;
+        int msg_size = str_sd_message.length(); // Calculating the message size
+        char sd_message[msg_size];              // Str to Char conversion
+        strcpy(sd_message, str_sd_message.c_str());
+
         appendFile(SD, file_path, sd_message);
 
         if (wifi_connection_status == 1)
@@ -1513,7 +1543,7 @@ void update_box_data(String box_id, byte *ptr_box_address, String required_param
             else
             {
                 client.loop();
-                sendData(box_id, message);
+                sendData(box_id, message, "na");
             }
         }
         else
@@ -1921,6 +1951,45 @@ void messageReceived(String &topic, String &payload)
     timerAlarmEnable(timer);
 }
 
+void read_aws_backlog_file()
+{
+    RL.readLines(BOX_ID_DETAILS_FILE, &handleEachAWSBacklogLine);
+    deleteFile(SD, AWS_BACKLOG_FILE);
+}
+
+void handleEachAWSBacklogLine(char line[], int lineIndex)
+{
+    char data[4][20]; // date,time,boxid,message
+    int j = 0;
+    int shift_val = 0;
+    for (int i = 0; i < (sizeof(line) / sizeof(line[0])); i++)
+    {
+        if (line[i] != ' ')
+            data[j][i - shift_val] = line[i];
+        else
+        {
+            j++;
+            shift_val = i;
+        }
+    }
+
+    String date_time = (String)data[0] + ' ' + (String)data[1];
+    String box_id = (String)data[2];
+    String message = (String)data[3];
+    char error_log[ERROR_LOG_LENGTH];
+    strcpy(error_log, latest_error_log.c_str());
+
+    if (!client.connected())
+        checkWiFiThenMQTT();
+    else
+    {
+        client.loop();
+        sendData(box_id, message, date_time);
+    }
+
+    return;
+}
+
 void lwMQTTErr(lwmqtt_err_t reason)
 {
     if (reason == lwmqtt_err_t::LWMQTT_SUCCESS)
@@ -2060,22 +2129,9 @@ void connectToMqtt(bool nonBlocking)
     }
 }
 
-void connectToWiFi(String init_str)
-{
-    if (init_str != emptyString)
-        Serial.print(init_str);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        Serial.print(".");
-        delay(1000);
-    }
-    if (init_str != emptyString)
-        Serial.println("ok!");
-}
-
 void checkWiFiThenMQTT(void)
 {
-    connectToWiFi("Checking WiFi");
+    wifi_ntp_setup();
     connectToMqtt(false);
 }
 
@@ -2084,7 +2140,7 @@ const long interval = 5000;
 
 void checkWiFiThenMQTTNonBlocking(void)
 {
-    connectToWiFi(emptyString);
+    wifi_ntp_setup();
     if (millis() - previousMillis >= interval && !client.connected())
     {
         previousMillis = millis();
@@ -2094,7 +2150,7 @@ void checkWiFiThenMQTTNonBlocking(void)
 
 void checkWiFiThenReboot(void)
 {
-    connectToWiFi("Checking WiFi");
+    wifi_ntp_setup();
     Serial.print("Rebooting");
     ESP.restart();
 }
@@ -2183,7 +2239,7 @@ void send_Success_Data(String box_id, String command, int success_status, String
  * @param box_id
  * @param message
  */
-void sendData(String box_id, String message)
+void sendData(String box_id, String message, String date_time)
 {
     // Reference:https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonGeneratorExample/JsonGeneratorExample.ino
 
@@ -2218,7 +2274,10 @@ void sendData(String box_id, String message)
 
     // Converting the data into JSON Format
     StaticJsonDocument<50> doc;
-    doc["time"] = (char)year + '/' + (char)month + '/' + (char)date + ' ' + (char)hour + ':' + (char)minutes + ':' + (char)seconds;
+    if (date_time == "na")
+        doc["time"] = (String)year + '/' + (String)month + '/' + (String)date + ' ' + (String)hour + ':' + (String)minutes + ':' + (String)seconds;
+    else
+        doc["time"] = date_time;
     doc["boxid"] = box_id;
     doc["cmd"] = "update";
     for (size_t i = 0; i < (j + 1); i++)
