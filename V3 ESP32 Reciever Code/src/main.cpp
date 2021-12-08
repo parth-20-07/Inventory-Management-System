@@ -718,7 +718,7 @@ void connect_to_new_wifi(void)
     Serial.println("Connect to:");
     Serial.println("SSID: " + (String)temp_ssid);
     Serial.println("Password: " + (String)temp_pwd);
-    Serial.print("IP address: 192.168.1.1");
+    Serial.print("IP address: 192.168.4.1");
 
     // Send web page with input fields to client
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -735,7 +735,6 @@ void connect_to_new_wifi(void)
                     inputMessage = request->getParam(PARAM_INPUT_1)->value();
                     inputParam = PARAM_INPUT_1;
                     deleteFile(SD, SSID_FILE);
-                    int n = inputMessage.length();
                     strcpy(ssid, inputMessage.c_str());
                     writeFile(SD, SSID_FILE, ssid);
                     Serial.println((String)ssid);
@@ -746,7 +745,6 @@ void connect_to_new_wifi(void)
                     inputMessage = request->getParam(PARAM_INPUT_2)->value();
                     inputParam = PARAM_INPUT_2;
                     deleteFile(SD, PASSWORD_FILE);
-                    int n = inputMessage.length();
                     strcpy(password, inputMessage.c_str());
                     writeFile(SD, PASSWORD_FILE, password);
                     Serial.println((String)password);
@@ -775,7 +773,7 @@ void connect_to_new_wifi(void)
         else if (i < 200)
             update_oled("Password:", (String)temp_pwd, "");
         else if (i < 500)
-            update_oled("Connect @", "192.168.1.1", "");
+            update_oled("Connect @", "192.168.4.1", "");
         else
             i = 0;
         i++;
@@ -1880,6 +1878,10 @@ void messageReceived(String &topic, String &payload)
     }
     String box_id = doc["boxid"];
     String cmd = doc["cmd"];
+    if (box_id == NULL)
+        update_oled("No", "Data", "Recieved");
+    else
+        update_oled(box_id, cmd, "");
     String address = fetch_box_address(box_id);
     // Perform action as per the command from AWS
     if (cmd == "add") // Add new Box
@@ -1907,13 +1909,11 @@ void messageReceived(String &topic, String &payload)
         }
         else if (cmd == "change_setting") // Change box settings
         {
-            String identifiers = doc["identifiers"];
+            String identifiers = doc["identifier"];
             change_box_setting(box_id, box_address, identifiers);
         }
         else if (cmd == "buzz")
-        {
             sound_buzzer(box_id, box_address);
-        }
     }
     solid_rgb_ring(GREEN_COLOR);
     update_oled("AWS", "MSG Recieved", "Complete");
@@ -2114,11 +2114,11 @@ void send_Success_Data(String box_id, String command, int success_status, String
     solid_rgb_ring(YELLOW_COLOR);
     update_oled("AWS", "Upload", "InProgess");
     StaticJsonDocument<50> doc;
-    doc["Box ID"] = box_id;
+    doc["boxid"] = box_id;
     doc["cmd"] = command;
     doc["success"] = success_status;
     if (command == "add")
-        doc["Box Address"] = param1;
+        doc["boxaddress"] = param1;
     else if (command == "calibration_update")
     {
         if (success_status == 1)
@@ -2219,7 +2219,7 @@ void sendData(String box_id, String message)
     // Converting the data into JSON Format
     StaticJsonDocument<50> doc;
     doc["time"] = (char)year + '/' + (char)month + '/' + (char)date + ' ' + (char)hour + ':' + (char)minutes + ':' + (char)seconds;
-    doc["Box ID"] = box_id;
+    doc["boxid"] = box_id;
     doc["cmd"] = "update";
     for (size_t i = 0; i < (j + 1); i++)
         doc[(String)params[i]] = (String)param_values[i];
@@ -2262,11 +2262,16 @@ void setup()
     if (BOX_DETAILS[0][0] == NULL)
     {
         solid_rgb_ring(RED_COLOR);
+        if (wifi_connection_status == 0)
+        {
+            update_oled("Device", "Not", "Connected");
+            delay(1000);
+            connect_to_new_wifi();
+        }
         update_oled("No", "Box", "Linked");
         Serial.println("No Box Linked");
         while (BOX_DETAILS[0][0] == NULL)
-        {
-        }
+            client.onMessage(messageReceived);
     }
     configure_timer();
     timerAlarmEnable(timer);
@@ -2303,7 +2308,10 @@ void loop()
     if ((millis() - lastMillis) > MAIN_SCREEN_REFRESH_TIME)
         update_splash_screen();
 
-    // //? Polls NRF24 to collect live data from boxes
+    //? Polls NRF24 to collect live data from boxes
     if (radio.available())
         reciever_initiated_call();
+
+    //? Polling AWS for recieved data
+    client.onMessage(messageReceived);
 }

@@ -1,10 +1,10 @@
 {
   "uuid": "5d2d32139457730f4b66bd7fc83b5968",
-  "path": "Offline/V2 ESP32 Reciever Board",
+  "path": "Offline/V2%20ESP32%20Reciever%20Board",
   "name": "V2 ESP32 Reciever Board",
   "content": "Board is designed so that the components on board is available mostly on  SunRom.com",
   "created_at": "2021-11-28 19:46:03",
-  "updated_at": "2021-11-28 22:12:50",
+  "updated_at": "2021-12-08 01:17:28",
   "stick": "",
   "documents": [
     {
@@ -12,7 +12,7 @@
       "title": "V2.1 Peripheral Connection Sheet",
       "description": "",
       "docType": "1",
-      "master": "f90ec55a583ad0d48ea4ca2dbcaccca3",
+      "master": "",
       "thumb": "/images/thumb-default.png",
       "components": {
         "fd11c9e744c44aeab6011e8bd4c3ea86": 3,
@@ -417,15 +417,15 @@
       "title": "V2.1 ESP32 Sheet",
       "description": "",
       "docType": "1",
-      "master": "502d108d5b397155d3daa1be57bac36e",
+      "master": "",
       "thumb": "/images/thumb-default.png",
       "components": {
         "bb009484ef804a24ac5d18c54b249586": 4,
         "089f853e15684e2f92ea6c2d29604ec9": 1,
-        "5fe245ff6b9e475096776d0b6c0998a1": 1,
         "797a6a13e07b4b3fa00d42f5a49ecb13": 1,
         "ade97575dadf9af3592537a08919f870": 2,
-        "0004541dc9884faca6ca3ba1b9a1c3e9": 1
+        "0004541dc9884faca6ca3ba1b9a1c3e9": 1,
+        "5fe245ff6b9e475096776d0b6c0998a1": 1
       },
       "BOM": [
         [
@@ -601,6 +601,7 @@
           {
             "BOM_Manufacturer Part": "https://www.sunrom.com/m/3871",
             "BOM_Supplier": "SunRom",
+            "BOM_Supplier Part": "",
             "puuid": "e7a277b2bca341efaeb086a2f6e64c37",
             "uuid": "e40941e7f4194bb5ae7e9aafae0704c2"
           }
@@ -626,6 +627,7 @@
           {
             "BOM_Manufacturer Part": "https://www.electronicscomp.com/ds3231-rtc-module-india?gclid=Cj0KCQiA7oyNBhDiARIsADtGRZZDGpqLDgmqQLV3gBgdrccFhdrlTPLKKc-cTX2XIsmWIarZX-In53QaAugzEALw_wcB",
             "BOM_Supplier": "ElectronicsComp.com",
+            "BOM_Supplier Part": "",
             "puuid": "ba9a5d2369694450b27e5a0285b8a3ae",
             "uuid": "d81705a321fa469db1c2d85d4d2cf548"
           }
@@ -691,6 +693,7 @@
           {
             "BOM_Manufacturer Part": "https://www.sunrom.com/p/1nf-102-0805-2012-metric",
             "BOM_Supplier": "SunRom",
+            "BOM_Supplier Part": "",
             "puuid": "2ee8eb13a0124a108e622ce40c0c25a8",
             "uuid": "5fe245ff6b9e475096776d0b6c0998a1"
           }
@@ -802,11 +805,11 @@
           }
         ]
       ],
-      "updateTime": 1638117700,
+      "updateTime": 1638906448,
       "createTime": 1638110379,
       "histories": [],
       "created_at": "2021-11-28 20:09:39",
-      "updated_at": "2021-11-28 22:11:40"
+      "updated_at": "2021-12-08 01:17:28"
     },
     {
       "uuid": "c0fd3ba85d61156bc241fe8bd3f45685",
@@ -841,11 +844,11 @@
         "b4cb6e6f44a64822b1a75e418bd409f5": 1
       },
       "BOM": [],
-      "updateTime": 1638110759,
+      "updateTime": 1638906274,
       "createTime": 1638110759,
       "histories": [],
       "created_at": "2021-11-28 20:15:59",
-      "updated_at": "2021-11-28 20:15:59"
+      "updated_at": "2021-12-08 01:14:34"
     }
   ],
   "sort": [
@@ -855,5 +858,5 @@
   "title": "V2 ESP32 Reciever Board",
   "foldername": "V2 ESP32 Reciever Board",
   "schfilename": "V2 ESP32 Reciever Board.json",
-  "schfilemtime": 1638117770997
+  "schfilemtime": 1638906448319
 }

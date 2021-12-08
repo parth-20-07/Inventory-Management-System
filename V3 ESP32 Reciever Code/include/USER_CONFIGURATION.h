@@ -24,6 +24,7 @@ const char MQTT_SUB_TOPIC[] = "aws/command22/123456789";
 const char MQTT_PUB_TOPIC[] = "$aws/rules/123456789/aws/tel/123456789";
 const char MQTT_HOST[] = "auu7lvgox59ol-ats.iot.ap-south-1.amazonaws.com";
 
+// Copy contents from XXXXXXXX-public.pem.key here ▼
 static const char cacert[] PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
 MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
