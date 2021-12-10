@@ -94,19 +94,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #include <nRF24L01.h>
 #include <RF24.h>
 RF24 radio(NRF24_CE, NRF24_CSN);
-const int AVAILABLE_CHARACTERS = 62;
-char alphabet[AVAILABLE_CHARACTERS] = {
-    'A', 'B', 'C', 'D', 'E', 'F', 'G',
-    'H', 'I', 'J', 'K', 'L', 'M', 'N',
-    'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-    'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
-    'c', 'd', 'e', 'f', 'g', 'h', 'i',
-    'j', 'k', 'l', 'm', 'n', 'o', 'p',
-    'q', 'r', 's', 't', 'u', 'v', 'w',
-    'x', 'y', 'z', '1', '2', '3', '4',
-    '5', '6', '7', '8', '9', '0'};
-
-byte BROADCAST_RECIEVER_ADDRESS[COMMUNICATION_ID_LENGTH] = "boxit";
+byte BROADCAST_RECIEVER_ADDRESS[COMMUNICATION_ID_LENGTH + 1] = "boxit";
 String BOX_DETAILS[MAX_BOXES][2];
 int BOX_DT_TIME_DETAILS[MAX_BOXES];
 
@@ -116,7 +104,7 @@ int BOX_DT_TIME_DETAILS[MAX_BOXES];
 #include "FS.h"
 #include "SD.h"
 #include <ReadLines.h>
-const char AWS_BACKLOG_FILE[] = "/AWS_Backlog_file.txt";
+char AWS_BACKLOG_FILE[] = "/AWS_Backlog_file.txt";
 char BOX_ID_DETAILS_FILE[] = "/Box_ID_Details.txt";
 char ERROR_LOG_FILE[] = "/Error_Log.txt";
 char SSID_FILE[] = "/SSID.txt";
@@ -206,14 +194,14 @@ int previous_count = 0; // Logs the previous time update loop was triggered
  */
 #include <EEPROM.h>
 #define EEPROM_SIZE 10
-#define CONNECTED_BOXES_STORED_LOCATION 0
 #define LED_RING_BRIGHTNESS_STORED_LOCATION 5
 
 //! Function Definition
 void configure_timer(void);
 void IRAM_ATTR onTime(void);
 void pin_setup(void);
-void wifi_ntp_setup(void);
+void connect_to_wifi(void);
+void connect_to_ntp(void);
 void nrf24_setup(void);
 void rtc_setup(void);
 void oled_setup(void);
@@ -238,12 +226,12 @@ void readFile(fs::FS &fs, const char *path);
 void writeFile(fs::FS &fs, const char *path, const char *message);
 void appendFile(fs::FS &fs, const char *path, const char *message);
 void read_rotary_encoder(void);
-void add_new_box(String box_id, String dt);
+void add_new_box(String box_id, String box_address, String dt);
 void calibrate_box(String box_id, byte *ptr_box_address);
-void update_box_data(String box_id, byte *ptr_box_address, String required_params);
-void change_box_setting(String box_id, byte *ptr_box_address, String identifiers);
+void update_box_data(String box_id, byte *ptr_box_address, String required_params, int call_location);
+void change_box_setting(String box_id, String ptr_box_address, String inventory_name, String dt, String bt, String st);
 void sound_buzzer(String box_id, byte *ptr_box_address);
-void reciever_initiated_call();
+void box_initiated_call();
 void write_radio(byte ptr_transmission_address[], String transmission_message);
 void set_radio_in_read_mode(byte ptr_recieving_address[]);
 String read_radio(void);
@@ -264,7 +252,7 @@ void connectToMqtt(bool nonBlocking);
 void checkWiFiThenMQTT(void);
 void checkWiFiThenMQTTNonBlocking(void);
 void checkWiFiThenReboot(void);
-void send_Success_Data(String box_id, String command, int success_status, String param1, String param2, String param3);
+void send_Success_Data(String box_id, String command, int success_status, String param1);
 void sendData(String box_id, String message, String date_time);
 
 //! Function Declaration
@@ -295,7 +283,6 @@ void configure_timer(void)
  */
 void IRAM_ATTR onTime(void)
 {
-    Serial.println("Timer Triggered");
     count++;
     return;
 }
@@ -315,7 +302,7 @@ void pin_setup(void)
 /**
  * @brief Setup WiFi and NTP
  */
-void wifi_ntp_setup(void)
+void connect_to_wifi(void)
 {
     solid_rgb_ring(YELLOW_COLOR);
     Serial.println("Connecting to Wi-Fi");
@@ -355,22 +342,27 @@ void wifi_ntp_setup(void)
             break;
         }
     }
-    rtc_setup();
+    if (wifi_connection_status == 0)
+    {
+        solid_rgb_ring(RED_COLOR);
+        Serial.println("Wifi Not Connected to SSID: " + (String)ssid);
+        update_oled("Wifi not", "Connected", (String)ssid);
+        delay(1000);
+        write_error_log(WIFI_NOT_CONNECTED); // Error Log
+    }
+    return;
+}
 
+void connect_to_ntp(void)
+{
+    rtc_setup();
     if (wifi_connection_status == 1)
     {
         configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); // Configure NTP
         printLocalTime();                                         // Fetching time from NTP
     }
     else
-    {
-        solid_rgb_ring(RED_COLOR);
-        Serial.println("Wifi Not Connected to SSID: " + (String)ssid);
-        update_oled("Wifi not", "Connected", (String)ssid);
-        delay(1000);
-        rtc_get_time();                      // Fetching time from RTC
-        write_error_log(WIFI_NOT_CONNECTED); // Error Log
-    }
+        rtc_get_time(); // Fetching time from RTC
     return;
 }
 
@@ -470,24 +462,13 @@ void aws_setup(void)
 {
     Serial.println("Setting up AWS");
     if (wifi_connection_status == 0)
-        wifi_ntp_setup();
+        connect_to_wifi();
     if (wifi_connection_status == 1)
     {
         solid_rgb_ring(YELLOW_COLOR);
         Serial.println("Setting up AWS Connection");
         update_oled("AWS", "Setup", "Progress");
         delay(1000);
-
-        // Connecting to Wi-Fi
-        Serial.println("Connecting to Wi-Fi");
-        WiFi.mode(WIFI_STA);
-        WiFi.begin(ssid, password);
-        while (WiFi.status() != WL_CONNECTED)
-        {
-            delay(50);
-            Serial.print(".");
-        }
-        Serial.println("WI-Fi Connected");
 
         // Configure WiFiClientSecure to use the AWS IoT device credentials
         net.setCACert(cacert);
@@ -496,7 +477,6 @@ void aws_setup(void)
 
         client.begin(MQTT_HOST, MQTT_PORT, net); // Connect to the MQTT broker on the AWS endpoint we defined earlier
         client.onMessage(messageReceived);       // Create a message handler
-
         connectToMqtt(false);
         read_aws_backlog_file(); // Upload the backlog data if any
         solid_rgb_ring(GREEN_COLOR);
@@ -584,7 +564,6 @@ void oled_menu_update(String item1, String item2, String item3)
 
 void update_splash_screen(void)
 {
-    Serial.println("Updating Splash Screen");
     lastMillis = millis();
     switch (main_screen_count)
     {
@@ -594,7 +573,6 @@ void update_splash_screen(void)
 
     case 2: // Shows the currently connected boxes
     {
-        connected_boxes = EEPROM.read(CONNECTED_BOXES_STORED_LOCATION);
         update_oled("Connected", "Boxes:", (String)connected_boxes);
     }
     break;
@@ -606,6 +584,7 @@ void update_splash_screen(void)
         {
             wifi_connection_status = "Disconn.";
             write_error_log(WIFI_NOT_CONNECTED);
+            connect_to_wifi();
         }
         update_oled("WiFi", ssid, wifi_connection_status);
     }
@@ -682,13 +661,23 @@ void printLocalTime(void)
     hour = timeinfo.tm_hour;
     minutes = timeinfo.tm_min;
     seconds = timeinfo.tm_sec;
+    if (month <= 9)
+        month = '0' + month;
+    if (date <= 9)
+        date = '0' + date;
+    if (hour <= 9)
+        hour = '0' + hour;
+    if (minutes <= 9)
+        minutes = '0' + minutes;
+    if (seconds <= 9)
+        seconds = '0' + seconds;
 
     solid_rgb_ring(GREEN_COLOR);
     Serial.println("NTP Update Successful");
     update_oled("NTP", "Update", "Success");
     delay(1000);
-    String day = (String)year + '/' + (String)month + '/' + (String)date;
-    String time = (String)hour + ':' + (String)minutes + ':' + (String)seconds;
+    String day = (String)year + "/" + (String)month + "/" + (String)date;
+    String time = (String)hour + ":" + (String)minutes + ":" + (String)seconds;
     Serial.println("Time from NTP:\n" + day + ' ' + time);
     update_oled("NTP Time", day, time);
     delay(1000);
@@ -701,6 +690,8 @@ void printLocalTime(void)
     solid_rgb_ring(GREEN_COLOR);
     update_oled("RTC", "Update", "Successful");
     delay(1000);
+
+    rtc_get_time();
     return;
 }
 
@@ -737,7 +728,7 @@ void connect_to_new_wifi(void)
     Serial.println("Connect to:");
     Serial.println("SSID: " + (String)temp_ssid);
     Serial.println("Password: " + (String)temp_pwd);
-    Serial.print("IP address: 192.168.4.1");
+    Serial.print("IP address: 192.168.1.1");
 
     // Send web page with input fields to client
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -793,7 +784,7 @@ void connect_to_new_wifi(void)
         else if (i < 200)
             update_oled("Password:", (String)temp_pwd, "");
         else if (i < 500)
-            update_oled("Connect @", "192.168.4.1", "");
+            update_oled("Connect @", "192.168.1.1", "");
         else
             i = 0;
         i++;
@@ -820,8 +811,8 @@ void rtc_get_time(void)
     hour = now.hour();
     minutes = now.minute();
     seconds = now.second();
-    String day = (String)year + '/' + (String)month + '/' + (String)date;
-    String time = (String)hour + ':' + (String)minutes + ':' + (String)seconds;
+    String day = (String)year + "/" + (String)month + "/" + (String)date;
+    String time = (String)hour + ":" + (String)minutes + ":" + (String)seconds;
     Serial.println("Time from RTC:\n" + day + ' ' + time);
     update_oled("RTC Time", day, time);
     delay(1000);
@@ -1253,7 +1244,6 @@ void read_rotary_encoder(void)
     delay(500);
     timerStart(timer);
     timerAlarmEnable(timer);
-    set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
     return;
 }
 // TODO: Menu Operation Functions
@@ -1277,32 +1267,30 @@ void read_rotary_encoder(void)
  *
  * @param box_id
  */
-void add_new_box(String box_id, String dt)
+void add_new_box(String box_id, String str_box_address, String dt)
 {
     solid_rgb_ring(YELLOW_COLOR);
     update_oled("Adding", "New Box", box_id);
     delay(1000);
 
-    // Generate Random Address for Communication
-    srand(time(0));
+    int n = str_box_address.length();
+    char char_box_address[n];
+    strcpy(char_box_address, str_box_address.c_str());
 
     byte communication_address[COMMUNICATION_ID_LENGTH]; // Communication address to be sent for NRF Communication
-    char save_sd_address[COMMUNICATION_ID_LENGTH];       // Address saved in order to save on sd card because byte format cannot be converted to string
     for (int i = 0; i < COMMUNICATION_ID_LENGTH; i++)
-    {
-        save_sd_address[i] = alphabet[rand() % (AVAILABLE_CHARACTERS - 1)];
-        communication_address[i] = save_sd_address[i];
-    }
+        communication_address[i] = char_box_address[i];
+    Serial.println("Address: " + str_box_address);
 
     // Write the message in format "pair,<box_id>,<communication_address>"
-    String message = box_id + ",pair," + "," + (String)save_sd_address;
+    String message = box_id + ",pair" + "," + str_box_address + "," + dt;
     write_radio(BROADCAST_RECIEVER_ADDRESS, message);
 
     // Wait for the Box to return a message
     set_radio_in_read_mode(communication_address);
     int i = 0;
     String recieved_message = "";
-    int max_attempts = 50;
+    int max_attempts = 200; // TODO: Change this time as per the need
     while ((i < max_attempts))
     {
         if (radio.available())
@@ -1316,26 +1304,23 @@ void add_new_box(String box_id, String dt)
 
     int connection_status = 0; // 0 -> Failure, 1 -> Success
     // Check if the recieved message is in format "pair,ok,<box_id>"
-    if (recieved_message = ("pair,ok," + (String)box_id))
+    String address = "";
+    if (recieved_message == ("pair,ok," + box_id))
     { // TRUE
         connection_status = 1;
 
-        // Reading the data from EEPROM about previously connected boxes
-        connected_boxes = EEPROM.read(CONNECTED_BOXES_STORED_LOCATION);
-        connected_boxes++;
-        EEPROM.write(CONNECTED_BOXES_STORED_LOCATION, connected_boxes);
-        EEPROM.commit();
-
         // Creating char array where the data in format<box_id><box_communication_address> is saved
-        int n = BOX_ID_LENGTH + COMMUNICATION_ID_LENGTH + dt.length();
+        String str_sd_message = box_id + "," + str_box_address + "," + dt + "\n";
+        int n = str_sd_message.length();
         char sd_message[n];
-        strcpy(sd_message, (box_id + (String)save_sd_address + dt).c_str());
+        Serial.println("Writing to SD: " + str_sd_message);
+        strcpy(sd_message, str_sd_message.c_str());
         appendFile(SD, BOX_ID_DETAILS_FILE, sd_message); // Appending the char array in SD Card
         read_box_details_from_sd_card();                 // Updating the box data and saving the new box in Box ID Array
         solid_rgb_ring(GREEN_COLOR);
         update_oled("Added", "New Box", box_id);
         delay(1000);
-        calibrate_box(box_id, communication_address); // Start Calibration in case of successful addition of new box
+        address = str_box_address;
     }
     else // FALSE
     {
@@ -1343,14 +1328,14 @@ void add_new_box(String box_id, String dt)
         update_oled("Failed", "New Box", box_id);
         delay(1000);
     }
-
-    if (!client.connected()) // Uploading the data in AWS
+    if (!client.connected())
         checkWiFiThenMQTT();
-    else
+    if (client.connected())
     {
         client.loop();
-        send_Success_Data((String)box_id, "add", connection_status, (String)save_sd_address, "", "");
+        send_Success_Data((String)box_id, "add", connection_status, address);
     }
+
     return;
 }
 
@@ -1371,6 +1356,7 @@ void add_new_box(String box_id, String dt)
 void calibrate_box(String box_id, byte *ptr_box_address)
 {
     solid_rgb_ring(YELLOW_COLOR);
+    Serial.println("Calibrating Box: " + box_id);
     update_oled("Calibrating", "Box", box_id);
     delay(1000);
 
@@ -1382,7 +1368,7 @@ void calibrate_box(String box_id, byte *ptr_box_address)
     set_radio_in_read_mode(ptr_box_address);
     int i = 0;
     String recieved_message = "";
-    int max_attempts = 50;
+    int max_attempts = 100; // TODO: Change this as per the need
     while (i < max_attempts)
     {
         if (radio.available())
@@ -1396,7 +1382,7 @@ void calibrate_box(String box_id, byte *ptr_box_address)
 
     int connection_status = 0; // 0 -> Failure, 1 -> Success
     // Check if the NRF connection was successful or not
-    if (recieved_message = ("cali,ok"))
+    if (recieved_message == ("cali,ok"))
     {
         connection_status = 1;
         solid_rgb_ring(GREEN_COLOR);
@@ -1413,16 +1399,17 @@ void calibrate_box(String box_id, byte *ptr_box_address)
     // AWS is contacted and updated if calibration is successful or not
     if (!client.connected())
         checkWiFiThenMQTT();
-    else
+    if (client.connected())
     {
         client.loop();
-        send_Success_Data((String)box_id, "calibrate", connection_status, "", "", "");
+        send_Success_Data(box_id, "calibrate", connection_status, "");
     }
 
     if (connection_status == 1)
     {
-        delay(30 * 1000);                                                  // Wait for calibration to complete
-        write_radio(ptr_box_address, box_id + ",calibration_data_update"); // Write to radio fpr updated values
+        Serial.println("Waiting for 30 seconds");
+        delay(30 * 1000);                               // Wait for calibration to complete
+        write_radio(ptr_box_address, box_id + ",clup"); // Write to radio for updated values
         set_radio_in_read_mode(ptr_box_address);
         int i = 0;
         String update_message = "";
@@ -1443,35 +1430,26 @@ void calibrate_box(String box_id, byte *ptr_box_address)
             solid_rgb_ring(GREEN_COLOR);
             update_oled("Calibration", "Successful", box_id);
             delay(1000);
-            // Creating Directory of Format YYYY/MM/
-            String str_dir = '/' + (String)year + '/' + (String)month;
-            int dir_size = str_dir.length();
-            char dir[dir_size]; // Str to Char conversion
-            strcpy(dir, str_dir.c_str());
-            createDir(SD, dir);
 
             // Creating File Path
-            String str_file_path = '/' + (String)year + '/' + (String)month + '/' + (String)date + file_extension;
+            String str_file_path = "/" + (String)year + "-" + (String)month + "-" + (String)date + file_extension;
             int path_size = str_file_path.length();
             char file_path[path_size]; // Str to Char conversion
             strcpy(file_path, str_file_path.c_str());
 
             // Converting data into required format
-            String str_sd_message = year + '/' + month + '/' + date + ' ' + hour + ':' + minutes + ':' + seconds + ' ' + box_id + ' ' + update_message;
+            String str_sd_message = year + "/" + (String)month + "/" + (String)date + "," + (String)hour + ":" + (String)minutes + ":" + (String)seconds + "," + box_id + "," + update_message + "\n";
             int msg_size = str_sd_message.length(); // Calculating the message size
             char sd_message[msg_size];              // Str to Char conversion
             strcpy(sd_message, str_sd_message.c_str());
             appendFile(SD, file_path, sd_message);
 
-            if (wifi_connection_status == 1)
+            if (!client.connected())
+                checkWiFiThenMQTT();
+            if (client.connected())
             {
-                if (!client.connected())
-                    checkWiFiThenMQTT();
-                else
-                {
-                    client.loop();
-                    send_Success_Data((String)box_id, "calibration_update", connection_status, update_message, "", "");
-                }
+                client.loop();
+                send_Success_Data((String)box_id, "calibration_update", connection_status, update_message);
             }
             else
                 appendFile(SD, AWS_BACKLOG_FILE, sd_message);
@@ -1493,31 +1471,19 @@ void calibrate_box(String box_id, byte *ptr_box_address)
  * @param box_id
  * @param box_address
  */
-void update_box_data(String box_id, byte *ptr_box_address, String required_params)
+void update_box_data(String box_id, byte *ptr_box_address, String required_params, int call_location)
 {
-    char token = '/';
-    char params[UPDATE_PARAMETERS];
-    int j = 0;
-    int recieved_params = sizeof(required_params) / sizeof(required_params[0]);
-    for (int i = 0; i < recieved_params; i++)
-    {
-        if (required_params[i] != token)
-            params[j] = required_params[i];
-        else
-            j++;
-    }
-
+    Serial.println("Updating Box");
+    Serial.println("Required Params: " + required_params);
     // Write radio with the address recieved
-    String write_message = box_id + ",updt,";
-    for (size_t i = 0; i < recieved_params; i++)
-        write_message += {(String)params[i] + ','};
+    String write_message = box_id + ",updt," + required_params;
     write_radio(ptr_box_address, write_message);
 
     // Read the radio
     set_radio_in_read_mode(ptr_box_address);
     int i = 0;
     String message = "";
-    int max_attempts = 50;
+    int max_attempts = 100; // TODO: Change in final setting
     while (i < max_attempts)
     {
         if (radio.available())
@@ -1531,39 +1497,39 @@ void update_box_data(String box_id, byte *ptr_box_address, String required_param
 
     if (message != "")
     {
-        // Creating Directory of Format YYYY/MM/
-        String str_dir = '/' + (String)year + '/' + (String)month;
-        int dir_size = str_dir.length();
-        char dir[dir_size]; // Str to Char conversion
-        strcpy(dir, str_dir.c_str());
-        createDir(SD, dir);
 
         // Creating File Path
-        String str_file_path = '/' + (String)year + '/' + (String)month + '/' + (String)date + file_extension;
+        String str_file_path = "/" + (String)year + "-" + (String)month + "-" + (String)date + file_extension;
         int path_size = str_file_path.length();
         char file_path[path_size]; // Str to Char conversion
         strcpy(file_path, str_file_path.c_str());
 
         // Converting data into required format
-        String str_sd_message = year + '/' + month + '/' + date + ' ' + hour + ':' + minutes + ':' + seconds + ' ' + box_id + ' ' + message;
+        String str_sd_message = year + "/" + (String)month + "/" + (String)date + "," + (String)hour + ":" + (String)minutes + ":" + (String)seconds + "," + box_id + "," + message + "\n";
         int msg_size = str_sd_message.length(); // Calculating the message size
         char sd_message[msg_size];              // Str to Char conversion
         strcpy(sd_message, str_sd_message.c_str());
-
         appendFile(SD, file_path, sd_message);
 
-        if (wifi_connection_status == 1)
+        if (!client.connected())
+            checkWiFiThenMQTT();
+        if (client.connected())
         {
-            if (!client.connected())
-                checkWiFiThenMQTT();
-            else
-            {
-                client.loop();
-                sendData(box_id, message, "na");
-            }
+            client.loop();
+            sendData(box_id, message, "na");
         }
         else
             appendFile(SD, AWS_BACKLOG_FILE, sd_message);
+    }
+    if (call_location == 1)
+    {
+        if (!client.connected())
+            checkWiFiThenMQTT();
+        if (client.connected())
+        {
+            client.loop();
+            send_Success_Data(box_id, "update", 0, "");
+        }
     }
 }
 
@@ -1576,31 +1542,31 @@ void update_box_data(String box_id, byte *ptr_box_address, String required_param
  * @param st
  * @param bt
  */
-void change_box_setting(String box_id, byte *ptr_box_address, String identifiers)
+void change_box_setting(String box_id, String box_address, String inventory_name, String dt, String bt, String st)
 {
     solid_rgb_ring(YELLOW_COLOR);
     update_oled("Change", "Setting", box_id);
+    Serial.println("Changing Settings");
     delay(1000);
 
-    int success_code = 0;
-    char token = '/';
-    char params[UPDATE_PARAMETERS];
-    int j = 0;
-    int recieved_params = sizeof(identifiers) / sizeof(identifiers[0]);
-    for (int i = 0; i < recieved_params; i++)
-    {
-        if (identifiers[i] != token)
-            params[j] = identifiers[i];
-        else
-            j++;
-    }
+    byte communication_address[COMMUNICATION_ID_LENGTH];
+    for (size_t i = 0; i < COMMUNICATION_ID_LENGTH; i++)
+        communication_address[i] = box_address[i];
 
     // Write radio with the address recieved
-    String message = box_id + ",chng,";
-    for (size_t i = 0; i < recieved_params; i++)
-        message += {(String)params[i] + ','};
-    write_radio(ptr_box_address, message);
-    set_radio_in_read_mode(ptr_box_address);
+    String message = box_id + ",chng";
+    if (inventory_name != "null")
+        message += (",in:" + inventory_name);
+    if (dt != "null")
+        message += (",dt:" + dt);
+    if (bt != "null")
+        message += (",bt:" + bt);
+    if (st != "null")
+        message += (",st:" + st);
+    Serial.println("Changed Settings: " + message);
+    write_radio(communication_address, message);
+    set_radio_in_read_mode(communication_address);
+
     int i = 0;
     String recieved_message = "";
     int max_attempts = 50;
@@ -1615,27 +1581,48 @@ void change_box_setting(String box_id, byte *ptr_box_address, String identifiers
         i++;
     }
 
+    int success_code = 0;
     if (recieved_message == "chng,ok")
     {
         success_code = 1;
         solid_rgb_ring(GREEN_COLOR);
-        update_oled("Setting", "Successful", box_id);
+        update_oled("Change", "Successful", box_id);
         delay(1000);
+        if (dt != "")
+        {
+            deleteFile(SD, BOX_ID_DETAILS_FILE); // Deletes the file with connected boxes
+            for (size_t i = 0; i < connected_boxes; i++)
+            {
+                if (box_id == BOX_DETAILS[i][0]) // Checks the connected boxes
+                {
+                    int n = dt.length();
+                    char char_dt[n];
+                    strcpy(char_dt, dt.c_str());
+                    BOX_DT_TIME_DETAILS[i] = atoi(char_dt);
+                }
+                String file_message = BOX_DETAILS[i][0] + "," + BOX_DETAILS[i][1] + "," + (String)BOX_DT_TIME_DETAILS[i] + "\n";
+                int n = file_message.length();
+                char char_file_message[n];
+                strcpy(char_file_message, file_message.c_str());
+                writeFile(SD, BOX_ID_DETAILS_FILE, char_file_message); // Rewrite the new data in file
+                read_box_details_from_sd_card();
+            }
+        }
     }
     else
     {
         solid_rgb_ring(RED_COLOR);
-        update_oled("Setting", "Failed", box_id);
+        update_oled("Change", "Failed", box_id);
         delay(1000);
     }
 
     // Update to AWS
     if (!client.connected())
         checkWiFiThenMQTT();
-    else
+    if (client.connected())
     {
         client.loop();
-        send_Success_Data(box_id, "change", success_code, "", "", "");
+        send_Success_Data(box_id, "change", success_code, "");
     }
 }
 
@@ -1657,42 +1644,41 @@ void sound_buzzer(String box_id, byte *ptr_box_address)
     delay(1000);
 }
 
-void reciever_initiated_call()
+void box_initiated_call()
 {
     Serial.println("Box Initiated Communication on NRF");
     String msg = read_radio();
-    char char_msg[2][BOX_ID_LENGTH];
-    int j = 0;
-    int seperation = 0;
-    for (size_t i = 0; i < msg.length(); i++)
+    Serial.println(msg);
+
+    String box_id, param;
+    String token = ",";
+    int i;
+    for (i = 0; i < msg.length(); i++)
     {
-        if (msg[i] != ',')
-            char_msg[j][i - seperation] = msg[i];
-        else
+        if (msg.substring(i, i + 1) == token)
         {
-            j++;
-            seperation++;
+            box_id = msg.substring(0, i);
+            break;
         }
     }
-    String box_id = (String)char_msg[0];
-    String param = (String)char_msg[1];
-
-    if (box_id.length() == BOX_ID_LENGTH) // Checks if the box initiated contact by sending its box id
+    param = msg.substring(i + 1, msg.length());
+    String str_box_address = fetch_box_address(box_id); // Checks the box id is in database for address
+    if (str_box_address.length() == COMMUNICATION_ID_LENGTH)
     {
-        String str_box_address = "";
-        str_box_address = fetch_box_address(box_id); // Checks the box id is in database for address
-        if (str_box_address != "")
-        {
-            byte box_address[COMMUNICATION_ID_LENGTH];
-            for (size_t i = 0; i < count; i++)
-                box_address[i] = str_box_address[i];
-            if (param == "updt")
-                update_box_data(box_id, box_address, PERIODIC_UPDATE_VALUES);
-            else if (param == "cali")
-                calibrate_box(box_id, box_address);
-        }
+        byte box_address[COMMUNICATION_ID_LENGTH];
+        for (int i = 0; i < COMMUNICATION_ID_LENGTH; i++)
+            box_address[i] = str_box_address[i];
+        Serial.println("Box ID: " + box_id);
+        Serial.println("Address: " + str_box_address);
+        Serial.println("param: " + param);
+
+        if (param == "updt")
+            update_box_data(box_id, box_address, PERIODIC_UPDATE_VALUES, 0);
+        else if (param == "cali")
+            calibrate_box(box_id, box_address);
     }
     set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
+    return;
 }
 
 // TODO: NRF24 Functions
@@ -1702,10 +1688,21 @@ void reciever_initiated_call()
  * @param transmission_address 5 byte Transmission Address
  * @param transmission_message 32 byte Transmission Message
  */
-void write_radio(byte ptr_transmission_address[], String transmission_message)
+void write_radio(byte ptr_transmission_address[], String str_transmission_message)
 {
     update_oled("Sending", "Message", "via NRF");
-    Serial.println("Writing Message: " + transmission_message);
+
+    // TODO: Delete this part later on
+    char address[COMMUNICATION_ID_LENGTH];
+    for (size_t i = 0; i < COMMUNICATION_ID_LENGTH; i++)
+        address[i] = ptr_transmission_address[i];
+    Serial.println("Writing Message at:" + (String)address);
+    // TODO: Delete till here
+
+    int n = str_transmission_message.length();
+    char transmission_message[n];
+    strcpy(transmission_message, str_transmission_message.c_str());
+    Serial.println("Writing Message via NRF: " + (String)transmission_message);
     radio.openWritingPipe(ptr_transmission_address);
     radio.setPALevel(RF24_PA_MIN);
     radio.stopListening();
@@ -1721,6 +1718,14 @@ void set_radio_in_read_mode(byte ptr_recieving_address[])
     radio.openReadingPipe(0, ptr_recieving_address);
     radio.setPALevel(RF24_PA_MIN);
     radio.startListening();
+
+    // TODO: Delete this part later on
+    char address[COMMUNICATION_ID_LENGTH];
+    for (size_t i = 0; i < COMMUNICATION_ID_LENGTH; i++)
+        address[i] = ptr_recieving_address[i];
+    Serial.println("Listening Message at:" + (String)address);
+    // TODO: Delete till here
+
     delay(100);
 }
 
@@ -1728,8 +1733,9 @@ String read_radio(void)
 {
     update_oled("Recieved", "Message", "via NRF");
     delay(1000);
-    String recieved_message = "";
+    char recieved_message[32];
     radio.read(&recieved_message, sizeof(recieved_message));
+    Serial.println("Recieved Message via NRF: " + (String)recieved_message);
     return recieved_message;
 }
 
@@ -1746,23 +1752,21 @@ void regular_box_update(int counter)
     update_oled("Box", "Polling", "Start");
     delay(1000);
     rtc_get_time();
-    connected_boxes = EEPROM.read(CONNECTED_BOXES_STORED_LOCATION);
     for (int i = 0; i < connected_boxes; i++)
     {
         halt_rgb_ring(i);
+        String box_id = BOX_DETAILS[i][0];
+        String address = BOX_DETAILS[i][1];
         int dt = BOX_DT_TIME_DETAILS[i];
-        Serial.println("dt: " + (String)dt);
+        Serial.println("Box ID: " + box_id + "\tAddress: " + address + "\tdt: " + (String)dt);
 
         if (counter % (dt * 60) == 0)
         {
-            String box_id = BOX_DETAILS[i][0];
-            String address = BOX_DETAILS[i][1];
             byte box_address[COMMUNICATION_ID_LENGTH];
             for (size_t i = 0; i < COMMUNICATION_ID_LENGTH; i++)
                 box_address[i] = address[i];
-
             update_oled("Contacting", "Box", box_id);
-            update_box_data(box_id, box_address, PERIODIC_UPDATE_VALUES);
+            update_box_data(box_id, box_address, PERIODIC_UPDATE_VALUES, 0);
         }
     }
 
@@ -1783,14 +1787,19 @@ void regular_box_update(int counter)
  */
 String fetch_box_address(String box_id)
 {
-    int i;
-    for (i = 0; i < connected_boxes; i++)
+    Serial.println("Fetching Address");
+    Serial.println("Connected Boxes: " + (String)connected_boxes);
+    String box;
+    String address;
+    for (int i = 0; i < connected_boxes; i++)
     {
-        String box = BOX_DETAILS[i][0];
+        box = BOX_DETAILS[i][0];
         if (box == box_id)
+        {
+            address = BOX_DETAILS[i][1];
             break;
+        }
     }
-    String address = BOX_DETAILS[i][1];
     return address;
 }
 
@@ -1819,30 +1828,32 @@ void read_box_details_from_sd_card(void)
  */
 void handleEachLine(char line[], int lineIndex)
 {
-    char box_id[BOX_ID_LENGTH];
-    char address[COMMUNICATION_ID_LENGTH];
-    char delay_time[2];
-
-    for (int i = 0; i < (BOX_ID_LENGTH + COMMUNICATION_ID_LENGTH + 2); i++)
+    String params[3]; // Box id, box address, box dt
+    String token = ",";
+    String sd_message = (String)line;
+    Serial.println("Line: " + sd_message);
+    int j = 0;
+    int last_val = 0;
+    int i;
+    for (i = 0; i < sd_message.length(); i++)
     {
-        if (i < BOX_ID_LENGTH)
+        if (sd_message.substring(i, i + 1) == token)
         {
-            box_id[i] = line[i];
-        }
-        else if (i < COMMUNICATION_ID_LENGTH)
-        {
-            address[i - BOX_ID_LENGTH] = line[i];
-        }
-        else
-        {
-            delay_time[i - BOX_ID_LENGTH - COMMUNICATION_ID_LENGTH] = line[i];
+            params[j] = sd_message.substring(last_val, i);
+            j++;
+            last_val = i + 1;
         }
     }
-
-    BOX_DETAILS[lineIndex][0] = (String)box_id;
-    BOX_DETAILS[lineIndex][1] = (String)address;
-    BOX_DT_TIME_DETAILS[lineIndex] = atoi(delay_time);
-    Serial.println("Box ID: " + BOX_DETAILS[lineIndex][0] + '\n' + "Box Address: " + BOX_DETAILS[lineIndex][1] + '\n' + "Delay Time: " + BOX_DETAILS[lineIndex][2]);
+    params[j] = sd_message.substring(last_val, i);
+    BOX_DETAILS[lineIndex][0] = params[0];
+    BOX_DETAILS[lineIndex][1] = params[1];
+    int n = params[2].length();
+    char dt[n];
+    strcpy(dt, params[2].c_str());
+    BOX_DT_TIME_DETAILS[lineIndex] = atoi(dt);
+    Serial.println("Box ID: " + BOX_DETAILS[lineIndex][0] + '\n' + "Box Address: " + BOX_DETAILS[lineIndex][1] + '\n' + "Delay Time: " + BOX_DT_TIME_DETAILS[lineIndex]);
+    connected_boxes = lineIndex + 1;
+    Serial.println("Connected Boxes: " + (String)connected_boxes);
     return;
 }
 
@@ -1907,42 +1918,43 @@ void write_error_log(String error_log_tag)
  * @param payload
  */
 void messageReceived(String &topic, String &payload)
-{
+{ // Reference (JSON to String Converter): https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonParserExample/JsonParserExample.ino
     timerStop(timer);
     timerAlarmDisable(timer);
-    // Reference (JSON to String Converter): https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonParserExample/JsonParserExample.ino
     solid_rgb_ring(YELLOW_COLOR);
     update_oled("Message", "Recieved", "from AWS");
     delay(1000);
-    Serial.println("Recieved [" + topic + "]: " + payload);
+
+    Serial.println("Recieved:\n" + payload);
     StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, payload);
+
     if (error)
     {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
+        Serial.println("deserializeJson() failed: " + (String)error.f_str());
         return;
     }
+
     String box_id = doc["boxid"];
     String cmd = doc["cmd"];
-    if (box_id == NULL)
-        update_oled("No", "Data", "Recieved");
-    else
-        update_oled(box_id, cmd, "");
-    String address = fetch_box_address(box_id);
+    update_oled(box_id, cmd, "");
+    delay(1000);
     // Perform action as per the command from AWS
     if (cmd == "add") // Add new Box
     {
+        String box_address = doc["boxaddress"];
         String dt = doc["dt"];
-        add_new_box(box_id, dt);
+        add_new_box(box_id, box_address, dt);
     }
     else
     {
         String address = fetch_box_address(box_id);
+        Serial.println("Address: " + address);
         byte box_address[COMMUNICATION_ID_LENGTH];
         for (size_t i = 0; i < COMMUNICATION_ID_LENGTH; i++)
             box_address[i] = address[i];
-        if (cmd == "calibrate") // Calibrate box parameters
+
+        if (cmd == "calibrate") // Calibrate box parametersśś
             calibrate_box(box_id, box_address);
         else if (cmd == "ask") // Ask box for updated values
         {
@@ -1950,14 +1962,17 @@ void messageReceived(String &topic, String &payload)
             rtc_get_time();
             solid_rgb_ring(YELLOW_COLOR);
             update_oled("Update", "Box", "Progress");
-            update_box_data(box_id, box_address, required_params);
+            update_box_data(box_id, box_address, required_params, 1);
             solid_rgb_ring(GREEN_COLOR);
             update_oled("Update", "Box", "Successful");
         }
         else if (cmd == "change_setting") // Change box settings
         {
-            String identifiers = doc["identifier"];
-            change_box_setting(box_id, box_address, identifiers);
+            String in = doc["in"];
+            String dt = doc["dt"];
+            String bt = doc["bt"];
+            String st = doc["st"];
+            change_box_setting(box_id, address, in, dt, bt, st);
         }
         else if (cmd == "buzz")
             sound_buzzer(box_id, box_address);
@@ -1971,40 +1986,39 @@ void messageReceived(String &topic, String &payload)
 void read_aws_backlog_file()
 {
     Serial.println("Reading Backlog Files");
-    RL.readLines(BOX_ID_DETAILS_FILE, &handleEachAWSBacklogLine);
+    RL.readLines(AWS_BACKLOG_FILE, &handleEachAWSBacklogLine);
     deleteFile(SD, AWS_BACKLOG_FILE);
 }
 
 void handleEachAWSBacklogLine(char line[], int lineIndex)
 {
-    char data[4][20]; // date,time,boxid,message
+    String params[4]; // date, time, boxid, message
+    String token = ",";
+    String sd_message = (String)line;
+    Serial.println("Line: " + sd_message);
     int j = 0;
-    int shift_val = 0;
-    for (int i = 0; i < (sizeof(line) / sizeof(line[0])); i++)
+    int last_val = 0;
+    int i;
+    for (i = 0; i < sd_message.length(); i++)
     {
-        if (line[i] != ' ')
-            data[j][i - shift_val] = line[i];
-        else
+        if (sd_message.substring(i, i + 1) == token)
         {
+            params[j] = sd_message.substring(last_val, i);
             j++;
-            shift_val = i;
+            last_val = i + 1;
+            if (j == 3)
+                break;
         }
     }
-
-    String date_time = (String)data[0] + ' ' + (String)data[1];
-    String box_id = (String)data[2];
-    String message = (String)data[3];
-    char error_log[ERROR_LOG_LENGTH];
-    strcpy(error_log, latest_error_log.c_str());
+    params[j] = sd_message.substring(last_val, sd_message.length());
 
     if (!client.connected())
         checkWiFiThenMQTT();
-    else
+    if (client.connected())
     {
         client.loop();
-        sendData(box_id, message, date_time);
+        sendData(params[2], params[3], params[0] + " " + params[1]);
     }
-
     return;
 }
 
@@ -2118,8 +2132,11 @@ void lwMQTTErrConnection(lwmqtt_return_code_t reason)
 void connectToMqtt(bool nonBlocking)
 {
     Serial.print("MQTT connecting ");
-    while (!client.connected())
+    int tries = 0;
+    int max_tries = 50;
+    while ((!client.connected()) && (tries < max_tries))
     {
+        tries++;
         if (client.connect(THINGNAME))
         {
             Serial.println("connected!");
@@ -2128,9 +2145,7 @@ void connectToMqtt(bool nonBlocking)
         }
         else
         {
-            Serial.print("SSL Error Code: ");
-            //  Serial.println(net.getLastSSLError());
-            Serial.print("failed, reason -> ");
+            Serial.println("failed, reason -> ");
             lwMQTTErrConnection(client.returnCode());
             if (!nonBlocking)
             {
@@ -2149,8 +2164,10 @@ void connectToMqtt(bool nonBlocking)
 
 void checkWiFiThenMQTT(void)
 {
-    wifi_ntp_setup();
-    connectToMqtt(false);
+    if (WiFi.status() != WL_CONNECTED)
+        connect_to_wifi();
+    if (WiFi.status() == WL_CONNECTED)
+        connectToMqtt(false);
 }
 
 unsigned long previousMillis = 0;
@@ -2158,7 +2175,7 @@ const long interval = 5000;
 
 void checkWiFiThenMQTTNonBlocking(void)
 {
-    wifi_ntp_setup();
+    connect_to_wifi();
     if (millis() - previousMillis >= interval && !client.connected())
     {
         previousMillis = millis();
@@ -2168,7 +2185,7 @@ void checkWiFiThenMQTTNonBlocking(void)
 
 void checkWiFiThenReboot(void)
 {
-    wifi_ntp_setup();
+    connect_to_wifi();
     Serial.print("Rebooting");
     ESP.restart();
 }
@@ -2182,7 +2199,7 @@ void checkWiFiThenReboot(void)
  * @param param1
  * @param param2
  */
-void send_Success_Data(String box_id, String command, int success_status, String param1, String param2, String param3)
+void send_Success_Data(String box_id, String command, int success_status, String param1)
 {
     // Reference (String to JSON Converter):https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonGeneratorExample/JsonGeneratorExample.ino
     solid_rgb_ring(YELLOW_COLOR);
@@ -2195,40 +2212,46 @@ void send_Success_Data(String box_id, String command, int success_status, String
         doc["boxaddress"] = param1;
     else if (command == "calibration_update")
     {
-        if (success_status == 1)
+        // Seperating the comma seperated values from message in format "<param_letter>:<param_value>"
+        Serial.println("Calibration update Parameters: " + param1);
+        String formatted_params[UPDATE_PARAMETERS];
+        String token = ",";
+        int string_index = 0;
+        int last_val_pos = 0;
+        int array_index = 0;
+        for (string_index; string_index < param1.length(); string_index++)
         {
-            // Seperating each recieved parameter and values in format: <identifier>:<value>
-            char token = ',';
-            int j = 0;
-            int k = 0;
-            char formatted_param[UPDATE_PARAMETERS][12];
-            for (int i = 0; i < UPDATE_PARAMETERS; i++)
+            if (param1.substring(string_index, string_index + 1) == token)
             {
-                if (param1[i] != token)
+                formatted_params[array_index] = param1.substring(last_val_pos, string_index);
+                Serial.println(formatted_params[array_index]);
+                array_index++;
+                last_val_pos = string_index + 1;
+            }
+        }
+        formatted_params[array_index] = param1.substring(last_val_pos, string_index);
+        Serial.println(formatted_params[array_index]);
+        array_index++;
+
+        // Seperating the colon seperated value and identifier and storing it in different arrays
+        String token_2 = ":";
+        for (int i = 0; i < array_index; i++)
+        {
+            String param = formatted_params[i];
+            for (int j = 0; j < param.length(); j++)
+            {
+                if (param.substring(j, j + 1) == token_2)
                 {
-                    formatted_param[j][k] = param1[i];
-                    k++;
-                }
-                else
-                {
-                    j++;
-                    k = 0;
+                    String updated_params[2];
+                    updated_params[0] = param.substring(0, j);
+                    updated_params[1] = param.substring(j + 1);
+                    doc[updated_params[0]] = updated_params[1]; // Converting the data into JSON Format
+                    Serial.println(updated_params[0] + ":" + updated_params[1]);
                 }
             }
-            // Seperating each recieved parameter and values in different matrix
-            char params[j];
-            char param_values[j][10];
-            for (size_t i = 0; i < j; i++)
-            {
-                params[i] = formatted_param[i][0];
-                for (size_t k = 2; k < count; k++)
-                    param_values[i][k - 2] = formatted_param[i][k];
-            }
-            // Converting the data to json format
-            for (size_t i = 0; i < j; i++)
-                doc[(String)params[i]] = (String)param_values[i];
         }
     }
+
     serializeJson(doc, Serial);
     serializeJsonPretty(doc, Serial);
     // The above line prints:
@@ -2237,18 +2260,19 @@ void send_Success_Data(String box_id, String command, int success_status, String
     //   "cmd": add,
     //   "success": 1,
     //   "param1": "param1_data",
-    //   "param2": "param2_data",
-    //   "param3": "param3_data",
     // }
     char shadow[measureJson(doc) + 1];
     serializeJson(doc, shadow, sizeof(shadow));
-    if (!client.publish(MQTT_PUB_TOPIC, shadow, false, 0))
+
+    int tries = 0;
+    int max_tries = 30;
+    while ((!client.publish(MQTT_PUB_TOPIC, shadow, false, 0)) && (tries < max_tries))
     {
         lwMQTTErr(client.lastError());
-        update_oled("AWS", command, "Failure");
+        update_oled("AWS", "update", "Failure");
+        delay(50);
+        tries++;
     }
-    else
-        update_oled("AWS", command, "Success");
 }
 
 /**
@@ -2260,47 +2284,50 @@ void send_Success_Data(String box_id, String command, int success_status, String
 void sendData(String box_id, String message, String date_time)
 {
     // Reference:https://github.com/bblanchon/ArduinoJson/blob/6.x/examples/JsonGeneratorExample/JsonGeneratorExample.ino
-
-    // Seperating the comma seperated values from message in format "<param_letter>:<param_value>"
     Serial.println("Sending to AWS");
-    char token = ',';
-    char formatted_params[UPDATE_PARAMETERS][12];
-    int j = 0;
-    int k = 0;
-    for (int i = 0; i < (sizeof(message) / message[0]); i++)
-    {
-        if (message[i] != token)
-        {
-            formatted_params[j][k] = message[i];
-            k++;
-        }
-        else
-        {
-            j++;
-            k = 0;
-        }
-    }
-
-    // Seperating the colon seperated value and identifier and storing it in different arrays
-    char params[j + 1]; // j signifies the number of recieved params
-    char param_values[j + 1][10];
-    for (size_t i = 0; i < (j + 1); i++)
-    {
-        params[i] = formatted_params[i][0]; // Saving the param identifier in params matrix
-        for (size_t k = 2; k < (sizeof(formatted_params[j]) / sizeof(formatted_params[j][0])); k++)
-            param_values[i][k - 2] = formatted_params[i][k];
-    }
-
-    // Converting the data into JSON Format
-    StaticJsonDocument<200> doc;
+    StaticJsonDocument<300> doc;
     if (date_time == "na")
         doc["time"] = (String)year + '/' + (String)month + '/' + (String)date + ' ' + (String)hour + ':' + (String)minutes + ':' + (String)seconds;
     else
         doc["time"] = date_time;
     doc["boxid"] = box_id;
     doc["cmd"] = "update";
-    for (size_t i = 0; i < (j + 1); i++)
-        doc[(String)params[i]] = (String)param_values[i];
+
+    // Seperating the comma seperated values from message in format "<param_letter>:<param_value>"
+    String formatted_params[UPDATE_PARAMETERS];
+    String token = ",";
+    int i = 0;
+    int last_val = 0;
+    int j = 0;
+    for (i = 0; i < message.length(); i++)
+    {
+        if (message.substring(i, i + 1) == token)
+        {
+            formatted_params[j] = message.substring(last_val, i);
+            j++;
+            last_val = i + 1;
+        }
+    }
+    formatted_params[j] = message.substring(last_val, i);
+    j++;
+
+    // Seperating the colon seperated value and identifier and storing it in different arrays
+    String token_2 = ":";
+    for (int i = 0; i < j; i++)
+    {
+        String param = formatted_params[i];
+        for (int j = 0; j < param.length(); j++)
+        {
+            if (param.substring(j, j + 1) == token_2)
+            {
+                String updated_params[2];
+                updated_params[0] = param.substring(0, j);
+                updated_params[1] = param.substring(j + 1);
+                Serial.println(updated_params[0] + ":" + updated_params[1]);
+                doc[updated_params[0]] = updated_params[1]; // Converting the data into JSON Format
+            }
+        }
+    }
     serializeJson(doc, Serial);
     serializeJsonPretty(doc, Serial);
     // The above line prints:
@@ -2314,13 +2341,15 @@ void sendData(String box_id, String message, String date_time)
     char shadow[measureJson(doc) + 1];
     serializeJson(doc, shadow, sizeof(shadow));
 
-    if (!client.publish(MQTT_PUB_TOPIC, shadow, false, 0))
+    int tries = 0;
+    int max_tries = 30;
+    while ((!client.publish(MQTT_PUB_TOPIC, shadow, false, 0)) && (tries < max_tries))
     {
         lwMQTTErr(client.lastError());
         update_oled("AWS", "update", "Failure");
+        delay(50);
+        tries++;
     }
-    else
-        update_oled("AWS", "update", "Success");
 }
 
 // TODO: Basic Setup, Code Operation Starts here
@@ -2333,29 +2362,25 @@ void setup()
     oled_setup();
     nrf24_setup();
     sd_setup();
-    wifi_ntp_setup();
+    connect_to_wifi();
+    connect_to_ntp();
     aws_setup();
     read_box_details_from_sd_card();
     RL.readLines(ERROR_LOG_FILE, &handleEachErrorLine);
-    // if (BOX_DETAILS[0][0] == NULL)
-    // {
-    //     solid_rgb_ring(RED_COLOR);
-    //     if (wifi_connection_status == 0)
-    //     {
-    //         update_oled("Device", "Not", "Connected");
-    //         delay(1000);
-    //         connect_to_new_wifi();
-    //     }
-    //     update_oled("No", "Box", "Linked");
-    //     Serial.println("No Box Linked");
-    //     while (BOX_DETAILS[0][0] == NULL)
-    //     {
-    //         Serial.println("reading");
-    // client.loop();
-    //     }
-    // }
-    // configure_timer();
-    // timerAlarmEnable(timer);
+    if (BOX_DETAILS[0][0] == NULL)
+    {
+        solid_rgb_ring(RED_COLOR);
+        if (wifi_connection_status == 0)
+        {
+            update_oled("Wifi", "Not", "Connected");
+            delay(1000);
+            connect_to_new_wifi();
+        }
+        update_oled("No", "Box", "Linked");
+        Serial.println("No Box Linked");
+    }
+    configure_timer();
+    timerAlarmEnable(timer);
     print_company_logo();
     lastMillis = millis();
     set_radio_in_read_mode(BROADCAST_RECIEVER_ADDRESS);
@@ -2373,17 +2398,14 @@ void loop()
     }
 
     //? When Count variable overflows the Timer Value, the periodic box polling is done
-    if ((count != 0) && ((count % 5) == 0))
-    {
+    if ((count != 0) && ((count % DELAY_ONE_MINUTES) == 0))
         if (previous_count != count)
         {
-            write_radio(BROADCAST_RECIEVER_ADDRESS, "Hello");
-            // regular_box_update(count);
+            regular_box_update(count);
             if (count >= DELAY_SIXTY_MINUTES)
                 count = 0;
             previous_count = count;
         }
-    }
 
     // //? Main Splash Screen Cycle
     if ((millis() - lastMillis) > MAIN_SCREEN_REFRESH_TIME)
@@ -2391,10 +2413,19 @@ void loop()
 
     //? Polls NRF24 to collect live data from boxes
     if (radio.available())
-        reciever_initiated_call();
+    {
+        box_initiated_call();
+        delay(500);
+    }
 
     //? Polling AWS for recieved data
-    sendData("123456789", "c:5,b:10,t:15", "na");
-    client.loop();
-    delay(5000);
+    if (WiFi.status() != WL_CONNECTED)
+        connect_to_new_wifi();
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        if (!client.connected())
+            checkWiFiThenMQTT();
+        if (client.connected())
+            client.loop();
+    }
 }

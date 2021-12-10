@@ -10,7 +10,7 @@ String contact_us_link = "bit.ly/3nIlHXx";
 //! Box Configuration
 #define BOX_ID_LENGTH 9           // Length of the Box ID
 #define MAX_BOXES 50              // Maximum Number of boxes connected
-#define COMMUNICATION_ID_LENGTH 6 // Length of communication ID for NRF24
+#define COMMUNICATION_ID_LENGTH 5 // Length of communication ID for NRF24
 #define UPDATE_PARAMETERS 5       // Parameters recieved from Box
 int connected_boxes = 0;
 
