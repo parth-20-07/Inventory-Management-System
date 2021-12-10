@@ -1,0 +1,29 @@
+{
+    "boxid": "879546213",
+    "cmd": "add",
+    "dt": "2",
+    "boxaddress": "defrg"
+}
+
+{
+    "boxid": "879546213",
+    "cmd": "calibrate"
+}
+
+{
+    "boxid": "879546213",
+    "cmd": "ask",
+    "identifier": "c,t,b"
+}
+
+{
+    "boxid": "879546213",
+    "cmd": "change_setting",
+    "dt": 2,
+    "bt": 1
+}
+
+{
+    "boxid": "879546213",
+    "cmd": "buzz"
+}
