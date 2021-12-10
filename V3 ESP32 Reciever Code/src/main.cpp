@@ -121,6 +121,7 @@ char line1[RL_MAX_CHARS];
 float counter = 0;
 int aState;
 int aLastState;
+#define MAX_IDLE_ROTARY_READ_TIME 60000 // 60 seconds
 
 //! Menu Setup
 // Code for Main Screen List
@@ -1131,8 +1132,11 @@ void read_rotary_encoder(void)
     String item3 = main_menu[main_list_pos + 2][menu_level][sub_list_pos];
     oled_menu_update(item1, item2, item3);
     aLastState = digitalRead(outputA);
+    lastMillis = millis();
     while (1)
     {
+        if (lastMillis - millis() > MAX_IDLE_ROTARY_READ_TIME) // This breaks the rotary loop if the rotary is left untouch for some time
+            break;
         item1 = "";
         item2 = "";
         item3 = "";
@@ -1140,6 +1144,7 @@ void read_rotary_encoder(void)
         aState = digitalRead(outputA); // Reads the "current" state of the outputA
         if (aState != aLastState)
         {
+            lastMillis = millis(); // This prevents the rotary loop from breaking
             // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
             if (digitalRead(outputB) != aState)
                 counter += 0.5;
