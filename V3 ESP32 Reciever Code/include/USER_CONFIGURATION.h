@@ -13,8 +13,9 @@
 // AWS Details
 int PORT = 443;
 const int MQTT_PORT = 8883;
-const char MQTT_SUB_TOPIC[] = "esp32/sub";
-const char MQTT_PUB_TOPIC[] = "esp32/pub";
+String MQTT_SUB_TOPIC = "esp32/sub";
+String MQTT_PUB_1_TOPIC = "esp32/pub1";
+String MQTT_PUB_2_TOPIC = "esp32/pub2";
 const char MQTT_HOST[] = "auu7lvgox59ol-ats.iot.ap-south-1.amazonaws.com";
 
 // Copy contents from XXXXXXXX-public.pem.key here ▼

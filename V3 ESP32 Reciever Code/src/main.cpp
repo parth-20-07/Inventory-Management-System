@@ -125,7 +125,7 @@ int aLastState;
 
 //! Menu Setup
 // Code for Main Screen List
-int lastMillis;
+unsigned long lastMillis;
 int main_screen_count = 1;
 String latest_error_log = "";
 #define CHARACTER_LENGTH 9 // Maximum Character Length allowed in a line on OLED
@@ -580,14 +580,10 @@ void update_splash_screen(void)
 
     case 3: // Checks the status of the Wi-Fi Connection
     {
-        String wifi_connection_status = "Connected";
         if (WiFi.status() != WL_CONNECTED)
-        {
-            wifi_connection_status = "Disconn.";
-            write_error_log(WIFI_NOT_CONNECTED);
-            connect_to_wifi();
-        }
-        update_oled("WiFi", ssid, wifi_connection_status);
+            update_oled("WiFi", "Not", "Connected");
+        else
+            update_oled("WiFi", "Connected", (String)ssid);
     }
     break;
 
@@ -717,6 +713,7 @@ void connect_to_new_wifi(void)
     Serial.println("Connecting to new Wi-Fi");
     delay(500);
 
+    WiFi.disconnect();
     IPAddress local_ip(192, 168, 1, 1);
     IPAddress gateway(192, 168, 1, 1);
     IPAddress subnet(255, 255, 255, 0);
@@ -856,18 +853,20 @@ void change_led_ring_brightness(void)
 {
     delay(500);
     int current_led_brightness = EEPROM.read(LED_RING_BRIGHTNESS_STORED_LOCATION);
-
     String item1 = "Brightness\nPercentage";
     String item2 = (String)current_led_brightness + '%';
     String item3 = "";
     oled_menu_update(item1, item2, item3);
-
     aLastState = digitalRead(outputA);
+    lastMillis = millis();
     while (1)
     {
+        if ((millis() - lastMillis) > MAX_IDLE_ROTARY_READ_TIME) // This breaks the rotary loop if the rotary is left untouch for some time
+            break;
         aState = digitalRead(outputA); // Reads the "current" state of the outputA
         if (aState != aLastState)
         {
+            lastMillis = millis();
             // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
             if (digitalRead(outputB) != aState)
                 current_led_brightness++;
@@ -895,7 +894,6 @@ void change_led_ring_brightness(void)
                 Serial.println("Saving LED Brightness to memory");
                 update_oled("Saving", "To", "Memory");
                 delay(1000);
-                break;
             }
         }
     }
@@ -1135,7 +1133,7 @@ void read_rotary_encoder(void)
     lastMillis = millis();
     while (1)
     {
-        if (lastMillis - millis() > MAX_IDLE_ROTARY_READ_TIME) // This breaks the rotary loop if the rotary is left untouch for some time
+        if ((millis() - lastMillis) > MAX_IDLE_ROTARY_READ_TIME) // This breaks the rotary loop if the rotary is left untouch for some time
             break;
         item1 = "";
         item2 = "";
@@ -1211,6 +1209,7 @@ void read_rotary_encoder(void)
 
             case 20: // Connect to New Wifi
                 connect_to_new_wifi();
+                aws_setup();
                 menu_level = 0;
                 main_list_pos = 0;
                 sub_list_pos = 0;
@@ -1753,6 +1752,19 @@ void regular_box_update(int counter)
     timerStop(timer);
     timerAlarmDisable(timer);
 
+    if (WiFi.status() != WL_CONNECTED)
+        connect_to_wifi();
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        if (!client.connected())
+            checkWiFiThenMQTT();
+        if (client.connected())
+        {
+            client.loop();
+            read_aws_backlog_file();
+        }
+    }
+
     solid_rgb_ring(YELLOW_COLOR);
     update_oled("Box", "Polling", "Start");
     delay(1000);
@@ -2271,7 +2283,7 @@ void send_Success_Data(String box_id, String command, int success_status, String
 
     int tries = 0;
     int max_tries = 30;
-    while ((!client.publish(MQTT_PUB_TOPIC, shadow, false, 0)) && (tries < max_tries))
+    while ((!client.publish(MQTT_PUB_2_TOPIC, shadow, false, 0)) && (tries < max_tries))
     {
         lwMQTTErr(client.lastError());
         update_oled("AWS", "update", "Failure");
@@ -2348,7 +2360,7 @@ void sendData(String box_id, String message, String date_time)
 
     int tries = 0;
     int max_tries = 30;
-    while ((!client.publish(MQTT_PUB_TOPIC, shadow, false, 0)) && (tries < max_tries))
+    while ((!client.publish(MQTT_PUB_1_TOPIC, shadow, false, 0)) && (tries < max_tries))
     {
         lwMQTTErr(client.lastError());
         update_oled("AWS", "update", "Failure");
@@ -2424,8 +2436,6 @@ void loop()
     }
 
     //? Polling AWS for recieved data
-    if (WiFi.status() != WL_CONNECTED)
-        connect_to_new_wifi();
     if (WiFi.status() == WL_CONNECTED)
     {
         if (!client.connected())
